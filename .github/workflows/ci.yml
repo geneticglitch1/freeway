@@ -3,7 +3,21 @@ name: CI
 on:
   push:
     branches: [main]
+    # Prose cannot break a build. Provider JSON can, so it is NOT ignored —
+    # the last step here fails if any providers/*.json stops parsing.
+    paths-ignore:
+      - '**/*.md'
+      - 'docs/**'
+      - 'demo/**'
+      - '.gitignore'
+      - 'LICENSE'
   pull_request:
+    paths-ignore:
+      - '**/*.md'
+      - 'docs/**'
+      - 'demo/**'
+      - '.gitignore'
+      - 'LICENSE'
   workflow_dispatch:
 
 concurrency:

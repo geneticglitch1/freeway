@@ -4,7 +4,19 @@ on:
   push:
     branches: [main]
     tags: ['v*.*.*']
+    paths-ignore:
+      - '**/*.md'
+      - 'docs/**'
+      - 'demo/**'
+      - '.gitignore'
+      - 'LICENSE'
   pull_request:
+    paths-ignore:
+      - '**/*.md'
+      - 'docs/**'
+      - 'demo/**'
+      - '.gitignore'
+      - 'LICENSE'
   workflow_dispatch:
 
 env:
@@ -29,6 +41,8 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: Set up QEMU
+        # Only needed to cross-build arm64, which only tagged releases do.
+        if: startsWith(github.ref, 'refs/tags/')
         uses: docker/setup-qemu-action@v3
 
       - name: Set up Buildx
@@ -65,7 +79,9 @@ jobs:
         uses: docker/build-push-action@v6
         with:
           context: .
-          platforms: linux/amd64,linux/arm64
+          # Multi-arch on releases; native-only otherwise, since emulating
+          # arm64 is most of the build time and nothing consumes it per-commit.
+          platforms: ${{ startsWith(github.ref, 'refs/tags/') && 'linux/amd64,linux/arm64' || 'linux/amd64' }}
           push: ${{ github.event_name != 'pull_request' }}
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}

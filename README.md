@@ -486,6 +486,10 @@ gateway flatly refuses to bind one with no keys at all.
 
 ## Development
 
+CI runs on code changes only — a README or `demo/` commit skips it. `[skip ci]`
+in a commit message skips it outright, and the arm64 image is only cross-built
+for tagged releases, since emulating it is most of the Docker job.
+
 ```bash
 ./scripts/demo.sh                     # scripted walkthrough against your providers
 node scripts/record-dashboard.mjs     # re-record the dashboard GIF
