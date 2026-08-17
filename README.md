@@ -10,8 +10,14 @@ has a sixteenth of the context window.
 
 ![Freeway demo](demo/freeway-demo.gif)
 
-*Every frame above is a real request against a live provider — recorded by
-`./scripts/demo.sh`, which you can run yourself.*
+**The dashboard, reacting to that same traffic:**
+
+![Freeway dashboard](demo/freeway-dashboard.gif)
+
+*Both are real. The terminal is `./scripts/demo.sh`; the dashboard is headless
+Chrome screenshotting the actual page via `node scripts/record-dashboard.mjs`,
+between real requests. Watch the token totals, cache hit rate and per-model
+counts climb — nothing is mocked up.*
 
 ```
 your app ──▶ Freeway ──┬──▶ Mistral        1B tokens/month
@@ -404,7 +410,8 @@ gateway flatly refuses to bind one with no keys at all.
 ## Development
 
 ```bash
-./scripts/demo.sh       # scripted walkthrough against your real providers
+./scripts/demo.sh                     # scripted walkthrough against your providers
+node scripts/record-dashboard.mjs     # re-record the dashboard GIF
 npm run build           # tsc --build, must be clean
 npm test                # node:test across all workspaces
 npm run smoke           # every route against mock upstreams — run this after adding a provider

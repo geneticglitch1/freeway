@@ -317,6 +317,7 @@ td.n{font-family:var(--mono); white-space:nowrap}
 const POLL_MS = 3000;
 const KEY_STORAGE = 'freeway.key';
 
+const STATIC = new URLSearchParams(location.search).has('nolive');
 let apiKey = localStorage.getItem(KEY_STORAGE) || '';
 let paused = false;
 let timer = null;
@@ -786,6 +787,10 @@ function setPulse(kind) {
 
 function schedule() {
   clearInterval(timer);
+  // ?nolive=1 renders once and then goes quiet: no polling interval, no event
+  // stream. A page that never stops working never finishes loading, which is
+  // what screenshot tools and headless browsers wait for.
+  if (STATIC) return;
   // Polling a hidden tab burns CPU for nobody; the visibilitychange handler
   // brings it straight back with a fresh fetch.
   timer = setInterval(() => { if (!paused && !document.hidden) refresh(); }, POLL_MS);
@@ -802,6 +807,9 @@ let liveBackoff = 1000;
 let liveConnected = false;
 
 async function connectLive() {
+  // ?nolive=1 keeps the page from holding an open SSE connection. Headless
+  // browsers and screenshot tools otherwise wait for a stream that never ends.
+  if (STATIC) { setLiveState(false); return; }
   if (liveAbort) liveAbort.abort();
   liveAbort = new AbortController();
 
