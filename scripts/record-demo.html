@@ -1,0 +1,173 @@
+<!doctype html>
+<html>
+<head><meta charset="utf-8"><title>Freeway — demo recorder</title></head>
+<body style="margin:0;background:#111;color:#ccc;font:13px system-ui">
+<!--
+  Renders a captured demo transcript into video frames on a <canvas>.
+
+  ffmpeg on macOS ships without freetype, so it can encode frames but cannot
+  draw text. The browser can do both, so frames are rasterised here and handed
+  back as PNGs for ffmpeg to assemble.
+
+  Usage: open, paste the transcript into TRANSCRIPT, then call
+  window.renderAll() and window.getFrame(i).
+-->
+<div style="padding:10px">
+  <div id="status">idle</div>
+  <canvas id="c" width="960" height="600" style="border:1px solid #333;max-width:100%"></canvas>
+</div>
+<script>
+'use strict';
+
+const W = 960, H = 600, PAD = 22;
+const LINE = 17, FONT = '13px Menlo, monospace';
+const VISIBLE = Math.floor((H - PAD * 2 - 34) / LINE);
+
+const COL = {
+  bg: '#0a0c0f', chrome: '#12151a', line: '#242a33',
+  fg: '#dbe2ea', dim: '#69737f', cyan: '#58a6ff',
+  green: '#3fb950', amber: '#d29922', purple: '#bc8cff', red: '#f85149',
+};
+
+let TRANSCRIPT = [];
+const canvas = document.getElementById('c');
+const ctx = canvas.getContext('2d');
+
+/** Colour a line by what it is, matching the dashboard's palette. */
+function styleOf(text) {
+  if (/^┌─|^└─/.test(text)) return { c: COL.fg, bold: true };
+  if (/^\s*#/.test(text)) return { c: COL.dim, bold: false };
+  if (/^\s*\$/.test(text)) return { c: COL.cyan, bold: false };
+  if (/^\s*(✓|→)/.test(text)) return { c: COL.green, bold: false };
+  if (/^\s*○/.test(text)) return { c: COL.amber, bold: false };
+  if (/x-freeway-(provider|model)/.test(text)) return { c: COL.green, bold: true };
+  if (/^\s*x-freeway|^\s*HTTP/.test(text)) return { c: COL.green, bold: false };
+  if (/cache: exact|0 tokens spent/.test(text)) return { c: COL.purple, bold: true };
+  if (/failed|unknown model/.test(text)) return { c: COL.amber, bold: false };
+  return { c: COL.fg, bold: false };
+}
+
+function drawChrome() {
+  ctx.fillStyle = COL.bg;
+  ctx.fillRect(0, 0, W, H);
+  ctx.fillStyle = COL.chrome;
+  ctx.fillRect(0, 0, W, 34);
+  ctx.strokeStyle = COL.line;
+  ctx.beginPath(); ctx.moveTo(0, 34.5); ctx.lineTo(W, 34.5); ctx.stroke();
+
+  const dots = ['#f85149', '#d29922', '#3fb950'];
+  dots.forEach((c, i) => {
+    ctx.beginPath();
+    ctx.arc(20 + i * 17, 17, 5.5, 0, Math.PI * 2);
+    ctx.fillStyle = c;
+    ctx.fill();
+  });
+
+  ctx.font = '12px Menlo, monospace';
+  ctx.fillStyle = COL.dim;
+  ctx.textAlign = 'center';
+  ctx.fillText('freeway — demo', W / 2, 21);
+  ctx.textAlign = 'left';
+}
+
+/**
+ * One frame: every line up to `upto`, with the last one revealed `partial`
+ * characters in, so text appears to be typing rather than blinking into place.
+ */
+function drawFrame(upto, partial) {
+  drawChrome();
+  ctx.font = FONT;
+  ctx.textBaseline = 'top';
+
+  const start = Math.max(0, upto - VISIBLE + 1);
+  let y = 34 + PAD;
+
+  for (let i = start; i <= upto && i < TRANSCRIPT.length; i++) {
+    let text = TRANSCRIPT[i];
+    const last = i === upto;
+    if (last && partial !== undefined && partial < text.length) text = text.slice(0, partial);
+
+    const s = styleOf(TRANSCRIPT[i]);
+    ctx.font = (s.bold ? 'bold ' : '') + FONT;
+    ctx.fillStyle = s.c;
+
+    // Clip to the window rather than letting a long line run off the edge.
+    let shown = text.replace(/\t/g, '  ');
+    const maxW = W - PAD * 2 - 12;
+    if (ctx.measureText(shown).width > maxW) {
+      while (shown.length > 1 && ctx.measureText(shown + '…').width > maxW) shown = shown.slice(0, -1);
+      shown += '…';
+    }
+    ctx.fillText(shown, PAD, y);
+
+    if (last) {
+      // Block cursor, so a paused frame still reads as a live terminal.
+      const w = ctx.measureText(shown).width;
+      ctx.fillStyle = COL.green;
+      ctx.fillRect(PAD + w + 2, y + 1, 7, 14);
+    }
+    y += LINE;
+  }
+}
+
+/* Frames are precomputed so ffmpeg gets a deterministic sequence rather than
+   whatever the render loop happened to catch. */
+let FRAMES = [];
+
+window.buildFrames = function (transcript) {
+  TRANSCRIPT = transcript.split('\n').map((l) => l.replace(/\[[0-9;]*m/g, ''));
+  // Trim leading/trailing blank runs, keep interior spacing.
+  while (TRANSCRIPT.length && !TRANSCRIPT[0].trim()) TRANSCRIPT.shift();
+  while (TRANSCRIPT.length && !TRANSCRIPT[TRANSCRIPT.length - 1].trim()) TRANSCRIPT.pop();
+
+  FRAMES = [];
+  for (let i = 0; i < TRANSCRIPT.length; i++) {
+    const text = TRANSCRIPT[i];
+    // A comment line is narration — type it out. Everything else is output,
+    // which in a real terminal appears at once.
+    if (/^\s*#/.test(text) && text.length > 12) {
+      const steps = 3;
+      for (let s = 1; s <= steps; s++) FRAMES.push({ upto: i, partial: Math.ceil((text.length / steps) * s) });
+    } else {
+      FRAMES.push({ upto: i, partial: undefined });
+    }
+    // Hold on the lines worth reading.
+    if (/x-freeway-provider|cache: exact|→ Your name is|└─/.test(text)) {
+      for (let h = 0; h < 4; h++) FRAMES.push({ upto: i, partial: undefined });
+    }
+  }
+  for (let h = 0; h < 8; h++) FRAMES.push({ upto: TRANSCRIPT.length - 1, partial: undefined });
+
+  document.getElementById('status').textContent = `${TRANSCRIPT.length} lines → ${FRAMES.length} frames`;
+  return FRAMES.length;
+};
+
+window.frameCount = () => FRAMES.length;
+
+/** Render frame `i` and return it as a bare base64 PNG. */
+window.getFrame = function (i) {
+  const f = FRAMES[i];
+  drawFrame(f.upto, f.partial);
+  return canvas.toDataURL('image/png').split(',')[1];
+};
+
+/** Render a contiguous batch, so the whole sequence needs few round trips. */
+window.getBatch = function (from, count) {
+  const out = [];
+  for (let i = from; i < Math.min(from + count, FRAMES.length); i++) out.push(window.getFrame(i));
+  return out;
+};
+
+window.preview = function () {
+  let i = 0;
+  const tick = () => {
+    if (i >= FRAMES.length) return;
+    const f = FRAMES[i++];
+    drawFrame(f.upto, f.partial);
+    setTimeout(tick, 120);
+  };
+  tick();
+};
+</script>
+</body>
+</html>

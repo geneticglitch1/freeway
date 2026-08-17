@@ -8,6 +8,11 @@ Your apps point at `http://localhost:8787/v1` and never see a provider key. When
 one free tier runs out, the next one takes over — mid-conversation, even if it
 has a sixteenth of the context window.
 
+![Freeway demo](demo/freeway-demo.gif)
+
+*Every frame above is a real request against a live provider — recorded by
+`./scripts/demo.sh`, which you can run yourself.*
+
 ```
 your app ──▶ Freeway ──┬──▶ Mistral        1B tokens/month
                        ├──▶ Cloudflare     10k neurons/day
@@ -399,6 +404,7 @@ gateway flatly refuses to bind one with no keys at all.
 ## Development
 
 ```bash
+./scripts/demo.sh       # scripted walkthrough against your real providers
 npm run build           # tsc --build, must be clean
 npm test                # node:test across all workspaces
 npm run smoke           # every route against mock upstreams — run this after adding a provider

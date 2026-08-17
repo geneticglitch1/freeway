@@ -14,3 +14,6 @@ data/
 
 *.log
 .DS_Store
+
+# recorder scratch — the encoded demo is committed, the frames are not
+demo/frames/
