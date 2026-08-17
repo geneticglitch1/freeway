@@ -1,12 +1,12 @@
 # Freeway
 
-A self-hosted, OpenAI-compatible gateway in front of every free-tier LLM
-provider. One endpoint, automatic failover, live quota visibility, and no real
-provider key ever leaving the box.
+**Self-hosted OpenAI-compatible gateway for free-tier LLM providers. Automatic
+failover, quota metering, context refit, two-tier caching, zero runtime deps.**
 
 Your apps point at `http://localhost:8787/v1` and never see a provider key. When
 one free tier runs out, the next one takes over — mid-conversation, even if it
-has a sixteenth of the context window.
+has a sixteenth of the context window. Ask the same thing twice and the second
+answer is free.
 
 ![Freeway demo](demo/freeway-demo.gif)
 
@@ -268,30 +268,107 @@ Sessions are optional. Omit the id and it's a plain OpenAI endpoint.
 
 ---
 
-## Cache
+## Caching
 
-| Tier | Default | Cost of a miss |
-|---|---|---|
-| exact | on (`safe`) | nothing |
-| semantic | **off** | one embedding call |
+Two tiers, and the point of both is the same: **a hit costs no quota, no
+upstream call, and no time.** On a free tier that is not an optimisation, it is
+extra headroom you did not have.
 
-`safe` mode caches only deterministic requests — `temperature <= 0.2` or an
-explicit `seed`. Replaying a `temperature: 0.9` answer would turn a creative
-endpoint into a broken record, so it doesn't.
+| Tier | Default | Catches | Cost of a miss |
+|---|---|---|---|
+| **exact** | on (`safe`) | the identical request | nothing |
+| **semantic** | off | the same question, worded differently | one embedding call |
 
-Semantic caching embeds the newest user turn through your *own* `/v1/embeddings`
-(Cloudflare `bge-large` by default), stores a normalised vector in a flat
-`Float32Array`, and matches on cosine similarity above `0.92`. 5k entries at
-1024 dims is ~20 MB — no vector database. Entries are scoped by resolved model
-set **and** system prompt, so a "you are a pirate" answer can never be served
-under "you are a lawyer".
+### Exact tier
 
-Cache hits cost no quota and are logged distinctly. A cached stream replays as
-SSE, so a client can't tell.
+The key is a SHA-256 over a **canonical** form of everything that could change
+the answer:
 
-```json
-"cache": { "mode": "safe", "semantic": { "enabled": true, "threshold": 0.92 } }
 ```
+messages · input · temperature · top_p · top_k · max_tokens · stop
+tools · tool_choice · response_format · seed · presence_penalty · frequency_penalty
+```
+
+Canonical matters. Object keys are sorted before hashing, so two clients that
+serialise the same request in a different order still share one entry. Anything
+not on that list — `user`, tracing metadata, your own annotations — is ignored,
+because it cannot change what the model says.
+
+The key is built from the **resolution**, not the raw model string. `auto` and
+`fast` resolving to the same model share a cache entry rather than each keeping
+their own copy.
+
+### `safe` mode, and why it is the default
+
+```jsonc
+"cache": { "mode": "safe" }   // "off" | "safe" | "aggressive"
+```
+
+`safe` caches only requests the provider would be expected to answer identically
+twice: `temperature <= 0.2`, or an explicit `seed`. A `temperature: 0.9` call is
+*supposed* to vary — replaying one answer forever turns a creative endpoint into
+a broken record, which is worse than not caching at all. `aggressive` caches
+everything, including streams, when you know your workload is deterministic.
+
+### Semantic tier
+
+Off by default, because every miss spends a real embedding call.
+
+Turned on, it embeds the newest user turn through **your own** `/v1/embeddings`
+(so it routes and fails over like any other request), normalises the vector, and
+matches on cosine similarity above `0.92` — the threshold the GPTCache
+literature settles on for factual workloads.
+
+Vectors live in **one flat `Float32Array`** with a parallel id array. Search is a
+linear scan of normalised dot products. 5,000 entries at 1,024 dims is about
+20 MB and a scan is well under a millisecond, so a vector database would be a
+runtime dependency solving a problem this size does not have. The slab adopts
+its width from the first embedding it sees, so `bge-large` (1024) and
+`bge-small` (384) both work without configuration.
+
+**Entries are scoped, not global.** The scope is a fingerprint of the resolved
+model set *and* the system prompt. Without that, a "you are a pirate" answer
+could be served under "you are a lawyer" — the same question genuinely has a
+different correct answer. A miss is also remembered for 60s, so an identical
+miss is not re-embedded twice.
+
+### Details that make it usable rather than merely present
+
+- **A cached stream is still a stream.** Hits replay as SSE in 24-character
+  frames with the usage block and trailing `[DONE]` intact, so a client
+  rendering token-by-token cannot tell a hit from a live call.
+- **Hits are never metered.** Counting them against a provider's quota would
+  make the dashboard bars lie about what is left.
+- **Hits are logged distinctly** — `x-freeway-cache: exact|semantic`, plus
+  `x-freeway-cache-score` on a semantic hit, and a tile on the dashboard showing
+  what fraction of traffic cost nothing.
+- **Eviction is TTL + true LRU.** Ordering by millisecond timestamp looked fine
+  and was wrong: entries written in the same millisecond tie, and eviction stops
+  being least-recently-used. A monotonic access counter fixes it.
+- **Compaction summaries are cached too**, keyed by the exact turn range they
+  cover. Re-compacting a thread never pays for the same summary twice — the most
+  expensive thing the context engine can do, done at most once.
+
+```jsonc
+"cache": {
+  "mode": "safe",
+  "ttlMs": 86400000,
+  "maxEntries": 5000,
+  "semantic": { "enabled": true, "threshold": 0.92, "model": "embed", "maxEntries": 5000 }
+}
+```
+
+`GET /api/cache` reports hit rate, entries and tokens saved. `DELETE /api/cache`
+clears both tiers.
+
+### What it deliberately is not
+
+The cache is **shared across virtual keys**. Two keys asking the same question
+share an entry — not a content leak, since the same question has the same
+answer, but `x-freeway-cache: exact` does reveal that *someone* asked it before.
+On a personal gateway that is the right trade; if it is not yours alone, set
+`cache.mode: "off"`. There is no distributed tier and no cross-process sharing:
+one gateway, one sqlite file, on purpose.
 
 ---
 
