@@ -81,12 +81,31 @@ jobs:
         run: |
           set -euo pipefail
           IMAGE="$(echo '${{ steps.meta.outputs.tags }}' | head -n1)"
-          docker run -d --name freeway-smoke -p 8787:8787 --platform linux/amd64 "$IMAGE"
+          # The gateway refuses to bind a public interface with no virtual keys —
+          # a deliberate failsafe, and the container binds 0.0.0.0. CI has to
+          # supply one, exactly as a real deployment would.
+          docker run -d --name freeway-smoke -p 8787:8787 --platform linux/amd64 \
+            -e FREEWAY_KEYS=fw-ci-smoke-only \
+            -e FREEWAY_ADMIN_KEY=fw-ci-admin-only \
+            "$IMAGE"
 
           for i in $(seq 1 30); do
             if curl -fsS http://127.0.0.1:8787/healthz >/dev/null 2>&1; then
               echo "gateway is healthy"
-              curl -fsS http://127.0.0.1:8787/healthz
+              curl -fsS http://127.0.0.1:8787/healthz; echo
+
+              # An unauthenticated call must be refused, and an app key must not
+              # reach the admin surface. If either regresses, the image is unsafe
+              # to publish however green everything else looks.
+              code=$(curl -s -o /dev/null -w '%{http_code}' -X POST http://127.0.0.1:8787/v1/chat/completions \
+                -H 'content-type: application/json' -d '{"model":"auto","messages":[]}')
+              [ "$code" = "401" ] || { echo "expected 401 without a key, got $code" >&2; docker rm -f freeway-smoke; exit 1; }
+
+              code=$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:8787/api/logs \
+                -H 'authorization: Bearer fw-ci-smoke-only')
+              [ "$code" = "403" ] || { echo "expected 403 for an inference key on /api, got $code" >&2; docker rm -f freeway-smoke; exit 1; }
+
+              echo "auth boundaries hold"
               docker rm -f freeway-smoke
               exit 0
             fi

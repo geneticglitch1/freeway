@@ -98,6 +98,8 @@ export function parseConfig(raw: unknown, env: Record<string, string | undefined
       const known = new Set(Object.keys(DEFAULT_CONFIG));
       known.add('$schema');
       for (const k of Object.keys(raw)) {
+        // JSON has no comments, so `"//note": [...]` is the conventional stand-in.
+        if (k.startsWith('//')) continue;
         if (!known.has(k)) issues.push({ path: k, message: 'unknown option (ignored)' });
       }
 
