@@ -1,0 +1,20 @@
+{
+  "$schema": "./_schema.json",
+  "id": "groq",
+  "label": "Groq",
+  "docs": "https://console.groq.com/docs/models",
+  "console": "https://console.groq.com/keys",
+  "priority": 15,
+  "baseUrl": "https://api.groq.com/openai/v1",
+  "auth": { "type": "bearer", "envKeys": ["GROQ_API_KEY", "GROQ_API_KEY_2"] },
+  "limits": { "rpm": 30, "rpd": 14400, "tpm": 6000 },
+  "limitsSource": "docs",
+  "verifiedOn": "2026-08-16",
+  "modelsEndpoint": "/models",
+  "modelsPath": "data[].id",
+  "notes": "LPU inference, very fast. Free limits vary per model — the numbers here are the commonly published floor, and the guard layer replaces them with per-key values read from x-ratelimit-* response headers. Run scripts/verify-provider.mjs groq to populate the real model list.",
+  "models": [
+    { "id": "llama-3.3-70b-versatile", "label": "Llama 3.3 70B", "alias": ["fast", "big"], "context": 131072, "caps": ["chat", "tools", "json", "long-context"], "priority": 10 },
+    { "id": "llama-3.1-8b-instant", "label": "Llama 3.1 8B Instant", "alias": ["cheap"], "context": 131072, "caps": ["chat", "tools", "json"], "priority": 20 }
+  ]
+}

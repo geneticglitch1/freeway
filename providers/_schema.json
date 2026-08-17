@@ -1,0 +1,142 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://freeway.local/schemas/provider.json",
+  "title": "Freeway provider spec",
+  "description": "One free-tier API provider, as data. Adding a provider means dropping one of these into providers/ and setting an env var — never editing TypeScript. Files whose name starts with _ are skipped by the loader, which is why this schema can live here.",
+  "type": "object",
+  "required": ["id", "baseUrl", "auth"],
+  "additionalProperties": false,
+
+  "properties": {
+    "$schema": { "type": "string" },
+
+    "id": {
+      "type": "string",
+      "pattern": "^[a-z0-9][a-z0-9-]*$",
+      "description": "Short slug. Becomes the first half of every model ref, e.g. `groq/llama-3.3-70b`."
+    },
+    "label": { "type": "string", "description": "Human name for the dashboard. Defaults to id." },
+    "docs": { "type": ["string", "null"], "description": "API docs URL, linked from the provider card." },
+    "console": { "type": ["string", "null"], "description": "Where to get a key. Linked as 'get a key' on unconfigured cards." },
+    "enabled": { "type": "boolean", "default": true },
+    "priority": { "type": "number", "default": 50, "description": "Lower is tried first under the `priority` strategy." },
+    "adapter": { "enum": ["openai"], "default": "openai", "description": "Wire format. Only `openai` is implemented." },
+
+    "baseUrl": {
+      "type": "string",
+      "description": "OpenAI-compatible base, e.g. https://api.groq.com/openai/v1. May contain ${ENV_VAR}, which is how providers that embed an account id in the URL stay pure data.",
+      "examples": [
+        "https://api.groq.com/openai/v1",
+        "https://api.cloudflare.com/client/v4/accounts/${CLOUDFLARE_ACCOUNT_ID}/ai/v1"
+      ]
+    },
+
+    "auth": {
+      "type": "object",
+      "required": ["type"],
+      "additionalProperties": false,
+      "properties": {
+        "type": {
+          "enum": ["bearer", "header", "query", "none"],
+          "description": "bearer → Authorization: Bearer <key>. header → a named header. query → a query param. none → no credential (a local Ollama)."
+        },
+        "header": { "type": ["string", "null"], "description": "Header name when type is `header`, e.g. x-api-key." },
+        "query": { "type": ["string", "null"], "description": "Query param name when type is `query`, e.g. key." },
+        "prefix": { "type": ["string", "null"], "description": "Overrides the `Bearer ` prefix. Set \"\" for a bare token." },
+        "envKeys": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Env vars to read keys from, in order. ONE variable may hold several comma-separated keys — that is the key pool, and quota is tracked per key.",
+          "examples": [["GROQ_API_KEY", "GROQ_API_KEY_2"]]
+        }
+      }
+    },
+
+    "limits": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "Free-tier ceilings. null means unknown or unlimited and is ALWAYS better than a guess — the guard layer overwrites nulls with values learned from upstream rate-limit headers.",
+      "properties": {
+        "rps": { "type": ["number", "null"], "exclusiveMinimum": 0, "description": "Requests per second (rolling)." },
+        "rpm": { "type": ["number", "null"], "exclusiveMinimum": 0, "description": "Requests per minute (rolling 60s)." },
+        "rpd": { "type": ["number", "null"], "exclusiveMinimum": 0, "description": "Requests per day (calendar, resets 00:00 UTC)." },
+        "tpm": { "type": ["number", "null"], "exclusiveMinimum": 0, "description": "Tokens per minute (rolling 60s)." },
+        "tpd": { "type": ["number", "null"], "exclusiveMinimum": 0, "description": "Tokens per day (calendar UTC)." },
+        "tpmo": { "type": ["number", "null"], "exclusiveMinimum": 0, "description": "Tokens per calendar month." },
+        "creditsPerDay": { "type": ["number", "null"], "exclusiveMinimum": 0, "description": "Abstract metered unit per day — Cloudflare bills free Workers AI in neurons." },
+        "creditsPerRequest": { "type": ["number", "null"], "exclusiveMinimum": 0, "description": "Fallback flat credit cost when a model has no per-token rates." }
+      }
+    },
+
+    "limitsSource": {
+      "enum": ["docs", "observed", "unverified"],
+      "default": "unverified",
+      "description": "Where the numbers above came from. Use `unverified` honestly — the dashboard badges it and nothing breaks."
+    },
+    "verifiedOn": { "type": ["string", "null"], "description": "ISO date the limits were last checked, e.g. 2026-08-16." },
+
+    "modelsEndpoint": {
+      "type": ["string", "null"],
+      "default": "/models",
+      "description": "Path for live model discovery, relative to baseUrl. null disables it (Cloudflare's OpenAI surface has no /models)."
+    },
+    "modelsPath": {
+      "type": "string",
+      "default": "data[].id",
+      "description": "Where ids live in the discovery response. Tiny grammar: `data[].id`, `models[].name`, `[].id`, `result[].name`. This is what keeps a non-OpenAI response shape a JSON edit.",
+      "examples": ["data[].id", "models[].name", "result[].name", "[].id"]
+    },
+
+    "dropParams": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "Body params this provider rejects; stripped before forwarding. Find them by sending a request and reading the 400.",
+      "examples": [["frequency_penalty", "presence_penalty"]]
+    },
+    "headers": {
+      "type": "object",
+      "additionalProperties": { "type": "string" },
+      "description": "Extra request headers. Values may contain ${ENV_VAR}."
+    },
+    "notes": { "type": ["string", "null"], "description": "Anything the next reader needs — signup friction, quirks, why a number is what it is." },
+
+    "models": {
+      "type": "array",
+      "description": "Seed models. Prefer a handful you have actually verified over a long list you have not; live discovery fills in the rest.",
+      "items": {
+        "type": "object",
+        "required": ["id"],
+        "additionalProperties": false,
+        "properties": {
+          "id": { "type": "string", "description": "Upstream model id, exactly as the provider spells it. May contain slashes." },
+          "label": { "type": "string" },
+          "alias": {
+            "type": "array",
+            "items": { "type": "string" },
+            "description": "Short names clients can route by. Several providers sharing an alias is the point — that is what makes failover work.",
+            "examples": [["fast", "cheap"]]
+          },
+          "context": { "type": ["number", "null"], "exclusiveMinimum": 0, "description": "Context window in tokens. null when unpublished; the context engine then assumes a conservative default." },
+          "caps": {
+            "type": "array",
+            "items": { "enum": ["chat", "tools", "json", "vision", "reasoning", "embed", "code", "long-context"] },
+            "default": ["chat"],
+            "description": "Drives routing. A request with `tools` only goes to models declaring `tools`. `embed` models never serve chat and vice versa."
+          },
+          "priority": { "type": "number", "default": 50 },
+          "enabled": { "type": "boolean", "default": true },
+          "maxOutput": { "type": ["number", "null"], "exclusiveMinimum": 0 },
+          "credits": {
+            "type": "object",
+            "additionalProperties": false,
+            "description": "Per-model credit rates. Output tokens typically cost 7-10x input, and a big model ~10x a small one, so one flat number per provider is wrong by an order of magnitude.",
+            "properties": {
+              "perMTokIn": { "type": ["number", "null"], "exclusiveMinimum": 0 },
+              "perMTokOut": { "type": ["number", "null"], "exclusiveMinimum": 0 }
+            }
+          }
+        }
+      }
+    }
+  }
+}

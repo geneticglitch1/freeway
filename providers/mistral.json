@@ -1,0 +1,398 @@
+{
+  "$schema": "./_schema.json",
+  "id": "mistral",
+  "label": "Mistral AI",
+  "docs": "https://docs.mistral.ai/getting-started/models/models_overview/",
+  "console": "https://console.mistral.ai/api-keys",
+  "enabled": true,
+  "priority": 10,
+  "adapter": "openai",
+  "baseUrl": "https://api.mistral.ai/v1",
+  "auth": {
+    "type": "bearer",
+    "envKeys": [
+      "MISTRAL_API_KEY",
+      "MISTRAL_API_KEY_2"
+    ]
+  },
+  "limits": {
+    "tpmo": 1000000000,
+    "tpm": 25000
+  },
+  "limitsSource": "observed",
+  "verifiedOn": "2026-08-17",
+  "modelsEndpoint": "/models",
+  "modelsPath": "data[].id",
+  "dropParams": [],
+  "headers": {},
+  "notes": "Free 'Experiment' plan: phone verification required, no credit card. Model ids are -latest aliases confirmed against a live GET /models on 2026-08-17 — deliberately NOT the dated ids from the docs overview page, several of which return 'Invalid model' on the API. Prefer -latest: it survives Mistral retiring a dated version. tpm was observed from x-ratelimit headers on /chat/completions (Mistral sends none on /models). Regenerate with: npm run verify-provider mistral -- --validate --apply",
+  "models": [
+    {
+      "id": "mistral-small-latest",
+      "label": "Mistral Small",
+      "alias": [
+        "fast",
+        "chat"
+      ],
+      "context": 128000,
+      "caps": [
+        "chat",
+        "tools",
+        "json",
+        "code"
+      ],
+      "priority": 10
+    },
+    {
+      "id": "mistral-medium-latest",
+      "label": "Mistral Medium",
+      "alias": [
+        "smart"
+      ],
+      "context": 128000,
+      "caps": [
+        "chat",
+        "tools",
+        "json",
+        "code",
+        "vision"
+      ],
+      "priority": 15
+    },
+    {
+      "id": "mistral-large-latest",
+      "label": "Mistral Large",
+      "alias": [
+        "big"
+      ],
+      "context": 128000,
+      "caps": [
+        "chat",
+        "tools",
+        "json",
+        "code",
+        "vision"
+      ],
+      "priority": 20
+    },
+    {
+      "id": "ministral-8b-latest",
+      "label": "Ministral 8B",
+      "alias": [
+        "cheap"
+      ],
+      "context": 128000,
+      "caps": [
+        "chat",
+        "tools"
+      ],
+      "priority": 30
+    },
+    {
+      "id": "ministral-3b-latest",
+      "label": "Ministral 3B",
+      "alias": [],
+      "context": 128000,
+      "caps": [
+        "chat",
+        "tools"
+      ],
+      "priority": 40
+    },
+    {
+      "id": "magistral-small-latest",
+      "label": "Magistral Small (reasoning)",
+      "alias": [
+        "reason"
+      ],
+      "context": 128000,
+      "caps": [
+        "chat",
+        "reasoning"
+      ],
+      "priority": 25
+    },
+    {
+      "id": "codestral-latest",
+      "label": "Codestral",
+      "alias": [
+        "code"
+      ],
+      "context": 256000,
+      "caps": [
+        "chat",
+        "code"
+      ],
+      "priority": 20
+    },
+    {
+      "id": "devstral-medium-latest",
+      "label": "Devstral Medium",
+      "alias": [],
+      "context": 128000,
+      "caps": [
+        "chat",
+        "tools",
+        "code"
+      ],
+      "priority": 35
+    },
+    {
+      "id": "mistral-embed",
+      "label": "Mistral Embed",
+      "alias": [
+        "embed"
+      ],
+      "context": 8000,
+      "caps": [
+        "embed"
+      ],
+      "priority": 10
+    },
+    {
+      "id": "mistral-medium-2505",
+      "label": "mistral-medium-2505",
+      "alias": [],
+      "caps": [
+        "chat"
+      ],
+      "context": null,
+      "priority": 50
+    },
+    {
+      "id": "mistral-medium-2508",
+      "label": "mistral-medium-2508",
+      "alias": [],
+      "caps": [
+        "chat"
+      ],
+      "context": null,
+      "priority": 50
+    },
+    {
+      "id": "codestral-2508",
+      "label": "codestral-2508",
+      "alias": [],
+      "caps": [
+        "chat",
+        "code"
+      ],
+      "context": null,
+      "priority": 50
+    },
+    {
+      "id": "mistral-code-latest",
+      "label": "mistral-code-latest",
+      "alias": [],
+      "caps": [
+        "chat",
+        "code"
+      ],
+      "context": null,
+      "priority": 50
+    },
+    {
+      "id": "mistral-code-fim-latest",
+      "label": "mistral-code-fim-latest",
+      "alias": [],
+      "caps": [
+        "chat",
+        "code"
+      ],
+      "context": null,
+      "priority": 50
+    },
+    {
+      "id": "devstral-2512",
+      "label": "devstral-2512",
+      "alias": [],
+      "caps": [
+        "chat",
+        "code"
+      ],
+      "context": null,
+      "priority": 50
+    },
+    {
+      "id": "devstral-latest",
+      "label": "devstral-latest",
+      "alias": [],
+      "caps": [
+        "chat",
+        "code"
+      ],
+      "context": null,
+      "priority": 50
+    },
+    {
+      "id": "mistral-small-2603",
+      "label": "mistral-small-2603",
+      "alias": [],
+      "caps": [
+        "chat"
+      ],
+      "context": null,
+      "priority": 50
+    },
+    {
+      "id": "mistral-vibe-cli-fast",
+      "label": "mistral-vibe-cli-fast",
+      "alias": [],
+      "caps": [
+        "chat"
+      ],
+      "context": null,
+      "priority": 50
+    },
+    {
+      "id": "mistral-large-2512",
+      "label": "mistral-large-2512",
+      "alias": [],
+      "caps": [
+        "chat"
+      ],
+      "context": null,
+      "priority": 50
+    },
+    {
+      "id": "ministral-3b-2512",
+      "label": "ministral-3b-2512",
+      "alias": [],
+      "caps": [
+        "chat"
+      ],
+      "context": null,
+      "priority": 50
+    },
+    {
+      "id": "ministral-8b-2512",
+      "label": "ministral-8b-2512",
+      "alias": [],
+      "caps": [
+        "chat"
+      ],
+      "context": null,
+      "priority": 50
+    },
+    {
+      "id": "ministral-14b-2512",
+      "label": "ministral-14b-2512",
+      "alias": [],
+      "caps": [
+        "chat"
+      ],
+      "context": null,
+      "priority": 50
+    },
+    {
+      "id": "ministral-14b-latest",
+      "label": "ministral-14b-latest",
+      "alias": [],
+      "caps": [
+        "chat"
+      ],
+      "context": null,
+      "priority": 50
+    },
+    {
+      "id": "mistral-medium",
+      "label": "mistral-medium",
+      "alias": [],
+      "caps": [
+        "chat"
+      ],
+      "context": null,
+      "priority": 50
+    },
+    {
+      "id": "mistral-medium-3-5",
+      "label": "mistral-medium-3-5",
+      "alias": [],
+      "caps": [
+        "chat"
+      ],
+      "context": null,
+      "priority": 50
+    },
+    {
+      "id": "mistral-medium-3.5",
+      "label": "mistral-medium-3.5",
+      "alias": [],
+      "caps": [
+        "chat"
+      ],
+      "context": null,
+      "priority": 50
+    },
+    {
+      "id": "mistral-medium-3",
+      "label": "mistral-medium-3",
+      "alias": [],
+      "caps": [
+        "chat"
+      ],
+      "context": null,
+      "priority": 50
+    },
+    {
+      "id": "mistral-medium-2604",
+      "label": "mistral-medium-2604",
+      "alias": [],
+      "caps": [
+        "chat"
+      ],
+      "context": null,
+      "priority": 50
+    },
+    {
+      "id": "mistral-vibe-cli-latest",
+      "label": "mistral-vibe-cli-latest",
+      "alias": [],
+      "caps": [
+        "chat"
+      ],
+      "context": null,
+      "priority": 50
+    },
+    {
+      "id": "mistral-vibe-cli-with-tools",
+      "label": "mistral-vibe-cli-with-tools",
+      "alias": [],
+      "caps": [
+        "chat"
+      ],
+      "context": null,
+      "priority": 50
+    },
+    {
+      "id": "mistral-embed-2312",
+      "label": "mistral-embed-2312",
+      "alias": [],
+      "caps": [
+        "embed"
+      ],
+      "context": null,
+      "priority": 50
+    },
+    {
+      "id": "codestral-embed",
+      "label": "codestral-embed",
+      "alias": [],
+      "caps": [
+        "embed"
+      ],
+      "context": null,
+      "priority": 50
+    },
+    {
+      "id": "codestral-embed-2505",
+      "label": "codestral-embed-2505",
+      "alias": [],
+      "caps": [
+        "embed"
+      ],
+      "context": null,
+      "priority": 50
+    }
+  ]
+}

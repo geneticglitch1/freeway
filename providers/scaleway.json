@@ -1,0 +1,17 @@
+{
+  "$schema": "./_schema.json",
+  "id": "scaleway",
+  "label": "Scaleway Generative APIs",
+  "docs": "https://www.scaleway.com/en/docs/generative-apis/",
+  "console": "https://console.scaleway.com/iam/api-keys",
+  "priority": 55,
+  "baseUrl": "https://api.scaleway.ai/v1",
+  "auth": { "type": "bearer", "envKeys": ["SCALEWAY_API_KEY"] },
+  "limits": { "rpm": null, "tpm": null },
+  "limitsSource": "unverified",
+  "verifiedOn": "2026-08-16",
+  "modelsEndpoint": "/models",
+  "modelsPath": "data[].id",
+  "notes": "EU-hosted (Paris), useful when data residency matters. Free tier exists but the published numbers move; nulls plus calibration are more honest than a snapshot.",
+  "models": []
+}

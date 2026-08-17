@@ -1,0 +1,16 @@
+node_modules/
+dist/
+*.tsbuildinfo
+
+# Secrets and live state — never commit these.
+.env
+.env.*
+!.env.example
+data/
+!data/.gitkeep
+*.db
+*.db-wal
+*.db-shm
+
+*.log
+.DS_Store

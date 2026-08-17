@@ -1,0 +1,20 @@
+{
+  "$schema": "./_schema.json",
+  "id": "google-ai",
+  "label": "Google AI Studio",
+  "docs": "https://ai.google.dev/gemini-api/docs/openai",
+  "console": "https://aistudio.google.com/apikey",
+  "priority": 25,
+  "baseUrl": "https://generativelanguage.googleapis.com/v1beta/openai",
+  "auth": { "type": "bearer", "envKeys": ["GOOGLE_AI_API_KEY", "GEMINI_API_KEY"] },
+  "limits": { "rpm": 15, "rpd": 1500 },
+  "limitsSource": "docs",
+  "verifiedOn": "2026-08-16",
+  "modelsEndpoint": "/models",
+  "modelsPath": "data[].id",
+  "notes": "The only free tier with native multimodal input across text, image, audio and video in one call. IMPORTANT: the free tier is not available in the EU, UK or Switzerland. Limits shown are for Flash; Pro models are far tighter (~2 rpm).",
+  "models": [
+    { "id": "gemini-2.5-flash", "label": "Gemini 2.5 Flash", "alias": ["fast", "vision"], "context": 1048576, "caps": ["chat", "tools", "json", "vision", "long-context"], "priority": 10 },
+    { "id": "text-embedding-004", "label": "Text Embedding 004", "alias": ["embed"], "context": 2048, "caps": ["embed"], "priority": 20 }
+  ]
+}

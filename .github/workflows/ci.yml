@@ -1,0 +1,48 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build-test:
+    name: build & test (node ${{ matrix.node }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        # 22 is the floor the package declares; 24 catches breakage early.
+        node: ['22', '24']
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node }}
+          cache: npm
+
+      - run: npm ci --no-audit --no-fund
+
+      - name: Typecheck and build
+        run: npm run build
+
+      - name: Test
+        run: node --test packages/*/test/*.test.ts
+
+      - name: Verify every shipped provider file parses
+        run: |
+          node --input-type=module -e "
+            import { Registry } from './packages/core/dist/registry.js';
+            const reg = new Registry({ dir: 'providers', env: {} });
+            const errors = reg.issues().filter(i => i.level === 'error');
+            for (const i of reg.issues()) console.log(\`[\${i.level}] \${i.file}: \${i.message}\`);
+            if (errors.length) { console.error(\`\${errors.length} provider file(s) failed to parse\`); process.exit(1); }
+            console.log(\`ok — \${reg.all().length} providers loaded\`);
+          "

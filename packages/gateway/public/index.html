@@ -1,0 +1,991 @@
+<!doctype html>
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Freeway</title>
+<style>
+/* An ops panel: dense, monospaced numbers, nothing that moves without reason.
+   No framework, no CDN, no build step — this file is the whole dashboard. */
+:root {
+  --bg:#0a0c0f; --panel:#12151a; --panel-2:#171b21; --line:#242a33; --line-2:#2f3742;
+  --fg:#dbe2ea; --fg-dim:#98a3b1; --fg-faint:#69737f;
+  --green:#3fb950; --amber:#d29922; --red:#f85149; --blue:#58a6ff; --purple:#bc8cff;
+  --mono:ui-monospace,SFMono-Regular,"SF Mono",Menlo,Consolas,monospace;
+  --sans:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+}
+*{box-sizing:border-box}
+html,body{margin:0;padding:0}
+body{
+  background:var(--bg); color:var(--fg); font:13px/1.45 var(--sans);
+  font-variant-numeric:tabular-nums; -webkit-font-smoothing:antialiased;
+}
+.num,code,pre,.mono{font-family:var(--mono); font-variant-numeric:tabular-nums}
+a{color:var(--blue); text-decoration:none}
+a:hover{text-decoration:underline}
+button{font:inherit; cursor:pointer}
+
+/* ---- top bar ---- */
+header{
+  position:sticky; top:0; z-index:20; background:rgba(10,12,15,.92);
+  backdrop-filter:blur(8px); border-bottom:1px solid var(--line);
+  display:flex; align-items:center; gap:18px; padding:10px 16px; flex-wrap:wrap;
+}
+.brand{font-weight:700; letter-spacing:-.02em; font-size:15px; display:flex; align-items:center; gap:8px}
+.brand svg{display:block}
+.stat{display:flex; flex-direction:column; line-height:1.2}
+.stat b{font-family:var(--mono); font-size:14px; font-weight:600}
+.stat span{font-size:10px; text-transform:uppercase; letter-spacing:.07em; color:var(--fg-faint)}
+.spacer{flex:1}
+.btn{
+  background:var(--panel-2); border:1px solid var(--line-2); color:var(--fg);
+  padding:5px 11px; border-radius:6px; font-size:12px;
+}
+.btn:hover{background:#1e232b; border-color:#3a434f}
+.btn.on{border-color:var(--green); color:var(--green)}
+.live{display:flex; align-items:center; gap:6px; font-size:11px; color:var(--fg-faint)}
+.pulse{width:7px;height:7px;border-radius:50%;background:var(--green)}
+.pulse.stale{background:var(--amber)}
+.pulse.dead{background:var(--red)}
+
+main{padding:16px; max-width:1800px; margin:0 auto}
+section{margin-bottom:26px}
+h2{
+  font-size:11px; text-transform:uppercase; letter-spacing:.09em; color:var(--fg-faint);
+  margin:0 0 10px; display:flex; align-items:center; gap:10px; font-weight:600;
+}
+h2::after{content:""; flex:1; height:1px; background:var(--line)}
+
+/* ---- banners ---- */
+.banner{
+  border:1px solid var(--line-2); border-left-width:3px; border-radius:6px;
+  padding:9px 12px; margin-bottom:10px; font-size:12px;
+}
+.banner.err{border-left-color:var(--red); background:rgba(248,81,73,.06)}
+.banner.warn{border-left-color:var(--amber); background:rgba(210,153,34,.06)}
+.banner.info{border-left-color:var(--blue); background:rgba(88,166,255,.06)}
+.banner b{font-family:var(--mono)}
+
+/* ---- provider cards ---- */
+.cards{display:grid; grid-template-columns:repeat(auto-fill,minmax(400px,1fr)); gap:12px}
+.card{
+  background:var(--panel); border:1px solid var(--line); border-radius:9px;
+  padding:13px 14px; display:flex; flex-direction:column; gap:11px;
+}
+.card.off{opacity:.55}
+.card.unconfigured{border-style:dashed}
+.card-head{display:flex; align-items:flex-start; gap:9px}
+.dot{width:9px;height:9px;border-radius:50%;flex:none;margin-top:5px}
+.dot.green{background:var(--green); box-shadow:0 0 7px rgba(63,185,80,.55)}
+.dot.amber{background:var(--amber); box-shadow:0 0 7px rgba(210,153,34,.5)}
+.dot.red{background:var(--red); box-shadow:0 0 7px rgba(248,81,73,.55)}
+.dot.grey{background:#454d58}
+.card-title{flex:1; min-width:0}
+.card-title h3{margin:0; font-size:14px; font-weight:600; letter-spacing:-.01em}
+.card-title .sub{font-family:var(--mono); font-size:10.5px; color:var(--fg-faint); word-break:break-all; margin-top:2px}
+.toggle{
+  position:relative; width:34px; height:19px; border-radius:19px; border:1px solid var(--line-2);
+  background:#1c212a; flex:none; padding:0; transition:background .12s,border-color .12s;
+}
+.toggle::after{
+  content:""; position:absolute; top:2px; left:2px; width:13px; height:13px; border-radius:50%;
+  background:#6b7683; transition:transform .12s, background .12s;
+}
+.toggle[aria-pressed="true"]{background:rgba(63,185,80,.22); border-color:var(--green)}
+.toggle[aria-pressed="true"]::after{transform:translateX(15px); background:var(--green)}
+
+.metrics{display:flex; gap:16px; flex-wrap:wrap; font-size:11px}
+.metrics div{display:flex; flex-direction:column; line-height:1.25}
+.metrics b{font-family:var(--mono); font-size:13px; font-weight:600}
+.metrics span{color:var(--fg-faint); font-size:9.5px; text-transform:uppercase; letter-spacing:.06em}
+.ok-c{color:var(--green)} .fail-c{color:var(--red)} .dim{color:var(--fg-dim)}
+
+/* ---- quota bars ---- */
+.bars{display:flex; flex-direction:column; gap:8px}
+.bar{
+  display:grid; grid-template-columns:56px 1fr auto; grid-template-rows:auto auto;
+  gap:3px 9px; align-items:center; font-size:10.5px;
+}
+.bar-key{grid-area:1/1; font-family:var(--mono); color:var(--fg-dim); text-transform:uppercase; letter-spacing:.02em; overflow:hidden; text-overflow:ellipsis}
+/* display:block matters — a percentage width on an inline element is ignored,
+   which silently renders every bar at zero. */
+.bar-track{grid-area:1/2; display:block; height:6px; background:#212832; border-radius:3px; overflow:hidden}
+.bar-fill{display:block; height:100%; border-radius:3px; min-width:2px; transition:width .3s ease}
+.bar-fill.zero{min-width:0}
+.bar-fill.lo{background:var(--green)} .bar-fill.mid{background:var(--amber)} .bar-fill.hi{background:var(--red)}
+.bar-meta{grid-area:1/3; font-family:var(--mono); color:var(--fg-dim); white-space:nowrap; font-size:10px}
+.bar-window{grid-area:2/2; color:var(--fg-faint); font-size:9.5px}
+
+/* ---- keys ---- */
+.keys{display:flex; flex-direction:column; gap:4px}
+.key-row{
+  display:flex; align-items:center; gap:8px; font-family:var(--mono); font-size:11px;
+  padding:4px 7px; background:var(--panel-2); border-radius:5px; border:1px solid transparent;
+}
+.key-row.bad{border-color:rgba(248,81,73,.35)}
+.key-row.cool{border-color:rgba(210,153,34,.35)}
+.pill{
+  font-size:9px; padding:1px 5px; border-radius:3px; text-transform:uppercase;
+  letter-spacing:.05em; font-family:var(--sans); font-weight:600;
+}
+.pill.ok{background:rgba(63,185,80,.16); color:var(--green)}
+.pill.invalid{background:rgba(248,81,73,.16); color:var(--red)}
+.pill.rate-limited,.pill.cooling{background:rgba(210,153,34,.16); color:var(--amber)}
+.pill.unknown{background:#242a33; color:var(--fg-faint)}
+.pill.grey{background:#242a33; color:var(--fg-dim)}
+.pill.blue{background:rgba(88,166,255,.14); color:var(--blue)}
+.pill.purple{background:rgba(188,140,255,.14); color:var(--purple)}
+
+.err-line{
+  font-family:var(--mono); font-size:10.5px; color:#ff9d96;
+  background:rgba(248,81,73,.07); border-radius:5px; padding:6px 8px; word-break:break-word;
+}
+.advice{
+  font-size:11.5px; background:rgba(210,153,34,.07); border-radius:6px; padding:8px 10px;
+  display:flex; flex-direction:column; gap:6px;
+}
+.advice code{
+  background:#0a0c0f; border:1px solid var(--line-2); border-radius:4px;
+  padding:3px 6px; font-size:10.5px; display:inline-block;
+}
+.copy{background:none;border:1px solid var(--line-2);color:var(--fg-dim);border-radius:4px;padding:2px 6px;font-size:10px}
+.copy:hover{color:var(--fg); border-color:#3a434f}
+.links{display:flex; gap:10px; font-size:11px; margin-top:auto; padding-top:2px}
+.paste{display:flex; gap:6px}
+.paste input{flex:1; min-width:0; font-size:11px; padding:5px 8px}
+.probe{
+  display:flex; flex-direction:column; gap:3px; background:var(--panel-2);
+  border-radius:6px; padding:8px 9px; max-height:240px; overflow:auto;
+}
+.probe-head{display:flex; gap:8px; align-items:center; font-size:11px; margin-bottom:3px}
+.probe-row{display:flex; gap:6px; align-items:center; font-family:var(--mono); font-size:10.5px; padding:2px 0}
+.usage{display:grid; grid-template-columns:repeat(auto-fit,minmax(210px,1fr)); gap:12px; margin-bottom:12px}
+.ucard{background:var(--panel); border:1px solid var(--line); border-radius:9px; padding:12px 14px}
+.ucard .big{font-family:var(--mono); font-size:24px; font-weight:600; letter-spacing:-.02em; line-height:1.1}
+.ucard .lbl{font-size:9.5px; text-transform:uppercase; letter-spacing:.08em; color:var(--fg-faint); margin-top:3px}
+.ucard .sub{font-size:10.5px; color:var(--fg-dim); margin-top:5px; font-family:var(--mono)}
+.split{display:grid; grid-template-columns:1fr 1fr; gap:12px}
+@media (max-width:900px){.split{grid-template-columns:1fr}}
+.bd{background:var(--panel); border:1px solid var(--line); border-radius:9px; overflow:hidden}
+.bd h4{margin:0; padding:8px 12px; font-size:9.5px; text-transform:uppercase; letter-spacing:.08em;
+  color:var(--fg-faint); border-bottom:1px solid var(--line); background:var(--panel-2)}
+.brow{display:grid; grid-template-columns:1fr auto; gap:10px; padding:6px 12px; font-size:11.5px; align-items:center}
+.brow + .brow{border-top:1px solid #1a1e25}
+.brow .n{font-family:var(--mono); color:var(--fg-dim); white-space:nowrap; font-size:11px}
+.msg{
+  background:#0d1015; border-radius:6px; padding:9px 11px; margin:6px 0;
+  font-size:11.5px; line-height:1.5; white-space:pre-wrap; word-break:break-word;
+  max-height:280px; overflow:auto; border-left:2px solid var(--line-2);
+}
+.msg.out{border-left-color:var(--green)}
+.msg-h{font-size:9.5px; text-transform:uppercase; letter-spacing:.07em; color:var(--fg-faint); margin-top:8px}
+.alert{
+  display:flex; gap:9px; align-items:center; padding:7px 11px; border-radius:6px;
+  border:1px solid var(--line); border-left-width:3px; margin-bottom:6px; font-size:12px;
+  background:var(--panel);
+}
+.alert.exhausted,.alert.critical{border-left-color:var(--red); background:rgba(248,81,73,.06)}
+.alert.warn{border-left-color:var(--amber); background:rgba(210,153,34,.06)}
+.alert .src{font-size:9px; text-transform:uppercase; letter-spacing:.06em; color:var(--fg-faint); font-weight:600}
+.forecast{grid-area:2/3; font-size:9.5px; color:var(--fg-faint); text-align:right}
+
+/* ---- tables ---- */
+.toolbar{display:flex; gap:8px; align-items:center; margin-bottom:8px; flex-wrap:wrap}
+input[type=search],input[type=password]{
+  background:var(--panel); border:1px solid var(--line-2); color:var(--fg);
+  border-radius:6px; padding:6px 10px; font:12px var(--mono); min-width:240px;
+}
+input:focus{outline:none; border-color:var(--blue)}
+.tbl-wrap{border:1px solid var(--line); border-radius:8px; overflow:auto; max-height:520px; background:var(--panel)}
+table{width:100%; border-collapse:collapse; font-size:11.5px}
+thead th{
+  position:sticky; top:0; background:var(--panel-2); text-align:left; font-weight:600;
+  font-size:9.5px; text-transform:uppercase; letter-spacing:.07em; color:var(--fg-faint);
+  padding:7px 10px; border-bottom:1px solid var(--line); white-space:nowrap; z-index:2;
+}
+tbody td{padding:6px 10px; border-bottom:1px solid #1a1e25; vertical-align:top}
+tbody tr:last-child td{border-bottom:none}
+tbody tr.clickable{cursor:pointer}
+tbody tr.clickable:hover{background:var(--panel-2)}
+td.n{font-family:var(--mono); white-space:nowrap}
+.caps{display:flex; gap:3px; flex-wrap:wrap}
+.status-200{color:var(--green)} .status-4xx{color:var(--amber)} .status-5xx{color:var(--red)}
+.attempts-detail{background:#0d1015; font-family:var(--mono); font-size:10.5px; padding:8px 10px}
+.attempts-detail div{padding:2px 0; color:var(--fg-dim)}
+.empty{padding:26px; text-align:center; color:var(--fg-faint); font-size:12px}
+.gate{max-width:420px; margin:70px auto; background:var(--panel); border:1px solid var(--line);
+  border-radius:10px; padding:22px; display:flex; flex-direction:column; gap:12px}
+.hide{display:none !important}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="brand">
+    <svg width="17" height="17" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+      <path d="M2 13 L8 3 L14 13" stroke="#58a6ff" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
+      <path d="M5.2 8.3 H10.8" stroke="#3fb950" stroke-width="1.6" stroke-linecap="round"/>
+    </svg>
+    Freeway
+  </div>
+  <div class="stat"><b id="s-providers">–</b><span>providers</span></div>
+  <div class="stat"><b id="s-models">–</b><span>models</span></div>
+  <div class="stat"><b id="s-ok" class="ok-c">–</b><span>ok</span></div>
+  <div class="stat"><b id="s-fail" class="fail-c">–</b><span>failed</span></div>
+  <div class="stat"><b id="s-strategy">–</b><span>strategy</span></div>
+  <div class="stat"><b id="s-uptime">–</b><span>uptime</span></div>
+  <div class="spacer"></div>
+  <div class="live">
+    <span class="pulse" id="pulse"></span><span id="pulse-text">live</span>
+    <span class="pill grey" id="live-badge" style="transition:transform .18s ease">connecting</span>
+  </div>
+  <button class="btn" id="btn-pause">pause</button>
+  <button class="btn" id="btn-reload">reload providers</button>
+</header>
+
+<div id="gate" class="gate hide">
+  <div><b>This gateway requires a virtual key.</b></div>
+  <div style="color:var(--fg-dim);font-size:12px">
+    The dashboard reads <code class="mono">/api/*</code>, which is administrative — it needs
+    <code class="mono">FREEWAY_ADMIN_KEY</code>, not the inference key your apps use.
+    It is kept in this browser's localStorage and never sent anywhere but this gateway.
+  </div>
+  <input type="password" id="gate-key" placeholder="fw-…" autocomplete="off">
+  <button class="btn" id="gate-go">unlock</button>
+  <div id="gate-err" class="err-line hide"></div>
+</div>
+
+<main id="app" class="hide">
+  <div id="banners"></div>
+
+  <section>
+    <h2>Token usage <span style="text-transform:none;letter-spacing:0;font-weight:400" id="usage-window"></span></h2>
+    <div class="usage" id="usage-cards"></div>
+    <div class="split">
+      <div class="bd"><h4>By provider</h4><div id="by-provider"></div></div>
+      <div class="bd"><h4>By model</h4><div id="by-model"></div></div>
+    </div>
+  </section>
+
+  <section id="alerts-section" class="hide">
+    <h2>Alerts</h2>
+    <div id="alerts"></div>
+  </section>
+
+  <section>
+    <h2>Providers</h2>
+    <div class="cards" id="cards"></div>
+  </section>
+
+  <section>
+    <h2>Model catalog</h2>
+    <div class="toolbar">
+      <input type="search" id="model-search" placeholder="filter by model, provider, alias or capability…">
+      <span id="model-count" style="font-size:11px;color:var(--fg-faint)"></span>
+    </div>
+    <div class="tbl-wrap">
+      <table>
+        <thead><tr>
+          <th>Provider</th><th>Model</th><th>Aliases</th><th>Capabilities</th><th>Context</th><th>State</th>
+        </tr></thead>
+        <tbody id="models-body"></tbody>
+      </table>
+    </div>
+  </section>
+
+  <section>
+    <h2>Request log</h2>
+    <div class="toolbar">
+      <input type="search" id="log-search" placeholder="filter the log…">
+      <span style="font-size:11px;color:var(--fg-faint)">click any row to see the prompt, the response and its tokens</span>
+    </div>
+    <div class="tbl-wrap">
+      <table>
+        <thead><tr>
+          <th>Time</th><th>Requested</th><th>Resolution</th><th>Served by</th>
+          <th>Att</th><th>Status</th><th>Latency</th><th>Tokens</th>
+        </tr></thead>
+        <tbody id="log-body"></tbody>
+      </table>
+    </div>
+  </section>
+</main>
+
+<script>
+'use strict';
+
+const POLL_MS = 3000;
+const KEY_STORAGE = 'freeway.key';
+
+let apiKey = localStorage.getItem(KEY_STORAGE) || '';
+let paused = false;
+let timer = null;
+let lastOk = 0;
+const expanded = new Set();
+let state = { providers: [], logs: [], stats: null, issues: [], probes: {}, alerts: null, usage: null };
+
+/* Provider labels, notes and requested model strings are all attacker-reachable
+   in principle (a model string comes straight off the wire), so nothing is
+   interpolated into HTML without going through here. */
+function esc(v) {
+  return String(v ?? '').replace(/[&<>"']/g, c => (
+    { '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[c]
+  ));
+}
+
+async function api(path, options) {
+  const opts = Object.assign({ headers: {} }, options);
+  if (apiKey) opts.headers['authorization'] = 'Bearer ' + apiKey;
+  if (opts.body) opts.headers['content-type'] = 'application/json';
+  const res = await fetch(path, opts);
+  // 403 means the key was valid but is inference-only; the dashboard needs the
+  // admin key, so both statuses land on the same prompt.
+  if (res.status === 401 || res.status === 403) {
+    const e = new Error(res.status === 403 ? 'this endpoint needs the admin key' : 'unauthorized');
+    e.unauthorized = true;
+    throw e;
+  }
+  if (!res.ok) throw new Error(path + ' → ' + res.status);
+  return res.json();
+}
+
+// ---------------------------------------------------------------- formatting
+
+function fmtNum(n) {
+  if (n === null || n === undefined) return '–';
+  if (n >= 1e9) return (n / 1e9).toFixed(1) + 'B';
+  if (n >= 1e6) return (n / 1e6).toFixed(1) + 'M';
+  if (n >= 1e3) return (n / 1e3).toFixed(1) + 'K';
+  return String(Math.round(n));
+}
+function fmtMs(ms) {
+  if (ms === null || ms === undefined) return '–';
+  if (ms < 1000) return Math.round(ms) + 'ms';
+  return (ms / 1000).toFixed(1) + 's';
+}
+function fmtDuration(sec) {
+  if (sec < 60) return sec + 's';
+  if (sec < 3600) return Math.floor(sec / 60) + 'm';
+  if (sec < 86400) return Math.floor(sec / 3600) + 'h';
+  return Math.floor(sec / 86400) + 'd';
+}
+function fmtTime(ts) {
+  const d = new Date(ts);
+  return d.toTimeString().slice(0, 8) + '.' + String(d.getMilliseconds()).padStart(3, '0');
+}
+function humaniseMs(ms) {
+  if (ms < 60000) return Math.max(1, Math.round(ms / 1000)) + 's';
+  if (ms < 3600000) return Math.round(ms / 60000) + 'm';
+  if (ms < 86400000) return (ms / 3600000).toFixed(1) + 'h';
+  return (ms / 86400000).toFixed(1) + 'd';
+}
+
+function barClass(pct) { return pct < 60 ? 'lo' : pct <= 85 ? 'mid' : 'hi'; }
+
+/* `creditsPerDay` does not fit the label column, and "credits" is what it is. */
+const BAR_LABELS = { creditsPerDay: 'credits' };
+function barLabel(key) { return BAR_LABELS[key] || key; }
+
+/* A key's `status` is the last thing that happened to it, which goes stale: a
+   key benched by a 429 still reads "rate-limited" long after its cooldown has
+   run out and it is usable again. Only `invalid` is worth showing past its
+   timer, because a rejected credential really is still suspect. */
+function keyStatus(k) {
+  if (k.cooldownMsRemaining > 0) return k.status;
+  if (k.status === 'rate-limited' || k.status === 'cooling') return 'ok';
+  return k.status;
+}
+
+/* Green only when it can actually serve traffic right now. An unconfigured
+   provider is amber, not red: nothing is broken, it just needs a key. */
+function health(p) {
+  if (!p.enabled) return { dot: 'grey', label: 'disabled' };
+  if (!p.configured) return { dot: 'amber', label: 'needs a key' };
+  if (p.cooldownMsRemaining > 0) return { dot: 'red', label: 'cooling ' + fmtMs(p.cooldownMsRemaining) };
+  const live = p.keys.filter(k => k.cooldownMsRemaining === 0).length;
+  if (p.keys.length > 0 && live === 0) return { dot: 'red', label: 'all keys benched' };
+  if (live < p.keys.length) return { dot: 'amber', label: live + '/' + p.keys.length + ' keys live' };
+  if (p.fail > 0 && p.fail / Math.max(1, p.ok + p.fail) > 0.2) return { dot: 'amber', label: 'degraded' };
+  return { dot: 'green', label: 'ready' };
+}
+
+// ------------------------------------------------------------------ rendering
+
+function renderBanners() {
+  const out = [];
+  const errs = state.issues.filter(i => i.level === 'error');
+  const warns = state.issues.filter(i => i.level === 'warning');
+
+  for (const i of errs) {
+    out.push('<div class="banner err"><b>' + esc(i.file) + '</b> was skipped — ' + esc(i.message) + '</div>');
+  }
+  for (const i of warns) {
+    out.push('<div class="banner warn"><b>' + esc(i.file) + '</b> — ' + esc(i.message) + '</div>');
+  }
+
+  const unconfigured = state.providers.filter(p => !p.configured);
+  if (unconfigured.length > 0 && errs.length === 0) {
+    out.push('<div class="banner info">' + unconfigured.length +
+      ' provider' + (unconfigured.length === 1 ? '' : 's') +
+      ' waiting for credentials — each card below names the variable to set.</div>');
+  }
+  document.getElementById('banners').innerHTML = out.join('');
+}
+
+function renderBars(bars, providerId) {
+  if (!bars || bars.length === 0) {
+    return '<div class="bar-window" style="color:var(--fg-faint)">no published limits — usage is unmetered here</div>';
+  }
+  return '<div class="bars">' + bars.map(b => {
+    const pct = Math.min(100, b.pct);
+    const reset = b.resetsAt ? ' · resets in ' + fmtDuration(Math.max(0, Math.round((b.resetsAt - Date.now()) / 1000))) : '';
+    return '<div class="bar">' +
+      '<span class="bar-key" title="' + esc(b.key) + '">' + esc(barLabel(b.key)) + '</span>' +
+      '<span class="bar-track"><span class="bar-fill ' + barClass(pct) + (pct === 0 ? ' zero' : '') +
+        '" style="width:' + pct.toFixed(1) + '%"></span></span>' +
+      '<span class="bar-meta">' + fmtNum(b.used) + ' / ' + fmtNum(b.limit) + ' · ' + pct.toFixed(0) + '%</span>' +
+      '<span class="bar-window">' + esc(b.window) + reset + '</span>' +
+      (() => {
+        const f = forecastFor(providerId, b.key);
+        if (!f || f.exhaustsInMs === null) return '';
+        return '<span class="forecast" title="' + esc(f.message) + '">dry in ' + esc(humaniseMs(f.exhaustsInMs)) + '</span>';
+      })() +
+      '</div>';
+  }).join('') + '</div>';
+}
+
+function renderKeys(p) {
+  if (p.authType === 'none') return '<div class="bar-window">no key required</div>';
+  if (p.keys.length === 0) return '';
+  return '<div class="keys">' + p.keys.map(k => {
+    const status = keyStatus(k);
+    const cls = status === 'invalid' ? 'bad' : k.cooldownMsRemaining > 0 ? 'cool' : '';
+    const cooling = k.cooldownMsRemaining > 0 ? '<span class="pill cooling">' + fmtMs(k.cooldownMsRemaining) + '</span>' : '';
+    return '<div class="key-row ' + cls + '" title="' + esc(k.lastError || '') + '">' +
+      '<span>' + esc(k.masked) + '</span>' +
+      '<span class="pill ' + esc(status) + '">' + esc(status) + '</span>' +
+      cooling +
+      '<span style="flex:1"></span>' +
+      '<span class="ok-c">' + k.ok + '</span><span style="color:var(--fg-faint)">/</span>' +
+      '<span class="' + (k.fail ? 'fail-c' : 'dim') + '">' + k.fail + '</span>' +
+      '<span class="dim">' + fmtMs(k.latencyMs) + '</span>' +
+      '<span class="pill grey">' + esc(k.source) + '</span>' +
+      '</div>';
+  }).join('') + '</div>';
+}
+
+/* An unconfigured provider gets a full card, not a hidden entry. Finding out a
+   provider is misconfigured should never require reading the server logs. */
+function renderAdvice(p) {
+  if (p.configured) return '';
+  const envLine = p.envKeys && p.envKeys.length ? p.envKeys[0] + '=' : '';
+  const needsEnvOnly = p.configError && /environment variable/.test(p.configError);
+
+  return '<div class="advice">' +
+    '<div>' + esc(p.configError || 'not configured') + '</div>' +
+    (envLine
+      ? '<div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap">' +
+        '<code>' + esc(envLine) + '&lt;your key&gt;</code>' +
+        '<button class="copy" data-copy="' + esc(envLine) + '">copy</button></div>'
+      : '') +
+    // A missing ${ENV} in the baseUrl cannot be fixed by pasting a key, so the
+    // paste box is only offered when a key is genuinely the missing piece.
+    (needsEnvOnly || p.authType === 'none' ? '' :
+      '<div class="paste">' +
+        '<input type="password" placeholder="paste a key to add it now…" data-key-input="' + esc(p.id) + '" autocomplete="off" spellcheck="false">' +
+        '<button class="btn" data-key-save="' + esc(p.id) + '">save</button>' +
+      '</div>' +
+      '<div class="bar-window">stored in data/keys.json (0600), masked everywhere, never logged</div>') +
+    '</div>';
+}
+
+function renderProbe(p) {
+  const probe = state.probes[p.id];
+  if (!probe) return '';
+  if (probe.loading) return '<div class="probe"><span class="dim">probing ' + esc(p.id) + '…</span></div>';
+  if (probe.error) return '<div class="err-line">probe failed: ' + esc(probe.error) + '</div>';
+
+  return '<div class="probe">' + probe.results.map(r => {
+    const known = p.models.map(m => m.id);
+    const rows = r.models.map(m => {
+      const cls = m.status === 'ok' ? 'ok' : m.status === 'undiscovered' ? 'grey' : 'invalid';
+      const isNew = m.discovered ? '<span class="pill blue">new</span>' : '';
+      return '<div class="probe-row"><span>' + esc(m.id) + '</span>' + isNew +
+        '<span style="flex:1"></span><span class="pill ' + cls + '">' +
+        esc(m.status === 'undiscovered' ? 'listed' : m.status) + '</span></div>';
+    }).join('');
+
+    const limits = Object.entries(r.observedLimits || {});
+    return '<div class="probe-head">' +
+        '<span class="pill ' + (r.auth === 'ok' ? 'ok' : 'invalid') + '">auth ' + esc(r.auth) + '</span>' +
+        '<span class="dim">' + esc(r.keyMasked) + '</span>' +
+        '<span class="dim">' + r.discovered.length + ' discovered · ' + r.ms + 'ms</span>' +
+      '</div>' +
+      (limits.length ? '<div class="bar-window">observed limits: ' +
+        esc(limits.map(([k, v]) => k + '=' + v).join(', ')) + '</div>' : '') +
+      (r.errors.length ? '<div class="err-line">' + esc(r.errors.join('; ')) + '</div>' : '') +
+      rows +
+      (r.discovered.filter(m => !known.includes(m)).length
+        ? '<div class="bar-window">' + r.discovered.filter(m => !known.includes(m)).length +
+          ' id(s) not yet in providers/' + esc(p.id) + '.json — run scripts/verify-provider.mjs ' + esc(p.id) + ' for a paste-ready block</div>'
+        : '');
+  }).join('') + '</div>';
+}
+
+function renderCards() {
+  const el = document.getElementById('cards');
+  if (state.providers.length === 0) {
+    el.innerHTML = '<div class="empty">No providers loaded. Drop a JSON file into <code>providers/</code>.</div>';
+    return;
+  }
+
+  el.innerHTML = state.providers.map(p => {
+    const h = health(p);
+    const total = p.ok + p.fail;
+    const badge = p.limitsSource === 'unverified'
+      ? '<span class="pill purple" title="limits could not be verified from provider docs; the guard layer learns the real values from upstream headers">limits unverified</span>'
+      : p.limitsSource === 'observed' ? '<span class="pill blue" title="limits learned from upstream rate-limit headers">limits observed</span>' : '';
+
+    return '<div class="card ' + (p.enabled ? '' : 'off') + ' ' + (p.configured ? '' : 'unconfigured') + '">' +
+      '<div class="card-head">' +
+        '<span class="dot ' + h.dot + '" title="' + esc(h.label) + '"></span>' +
+        '<div class="card-title">' +
+          '<h3>' + esc(p.label) + ' ' + badge + '</h3>' +
+          '<div class="sub">' + esc(p.id) + ' · ' + esc(h.label) + ' · p' + p.priority + '</div>' +
+        '</div>' +
+        '<button class="toggle" data-toggle="' + esc(p.id) + '" aria-pressed="' + (p.enabled ? 'true' : 'false') +
+          '" title="' + (p.enabled ? 'take out of rotation' : 'put back in rotation') + '"></button>' +
+      '</div>' +
+
+      renderAdvice(p) +
+
+      '<div class="metrics">' +
+        '<div><b class="ok-c">' + fmtNum(p.ok) + '</b><span>ok</span></div>' +
+        '<div><b class="' + (p.fail ? 'fail-c' : 'dim') + '">' + fmtNum(p.fail) + '</b><span>failed</span></div>' +
+        '<div><b class="dim">' + (total ? Math.round((p.ok / total) * 100) + '%' : '–') + '</b><span>success</span></div>' +
+        '<div><b class="dim">' + fmtMs(p.latencyMs) + '</b><span>latency ewma</span></div>' +
+        '<div><b class="dim">' + p.models.length + '</b><span>models</span></div>' +
+      '</div>' +
+
+      renderBars(p.bars, p.id) +
+      renderKeys(p) +
+      renderProbe(p) +
+      (p.lastError ? '<div class="err-line">' + esc(p.lastError) + '</div>' : '') +
+
+      '<div class="links">' +
+        (p.docs ? '<a href="' + esc(p.docs) + '" target="_blank" rel="noreferrer noopener">docs ↗</a>' : '') +
+        (p.console ? '<a href="' + esc(p.console) + '" target="_blank" rel="noreferrer noopener">get a key ↗</a>' : '') +
+        '<span style="flex:1"></span>' +
+        (p.configured
+          ? '<a href="#" data-probe="' + esc(p.id) + '" title="ask the provider which models this key can reach">probe models</a>' +
+            '<a href="#" data-probe-validate="' + esc(p.id) + '" title="also send a 1-token request per model — costs real quota">deep probe</a>'
+          : '') +
+      '</div>' +
+    '</div>';
+  }).join('');
+}
+
+function renderModels() {
+  const q = document.getElementById('model-search').value.trim().toLowerCase();
+  const rows = [];
+  for (const p of state.providers) {
+    for (const m of p.models) {
+      const hay = (p.id + ' ' + p.label + ' ' + m.id + ' ' + m.alias.join(' ') + ' ' + m.caps.join(' ')).toLowerCase();
+      if (q && !hay.includes(q)) continue;
+      const live = p.enabled && p.configured && m.enabled;
+      rows.push('<tr>' +
+        '<td class="n">' + esc(p.id) + '</td>' +
+        '<td class="n">' + esc(m.id) + '</td>' +
+        '<td><div class="caps">' + m.alias.map(a => '<span class="pill blue">' + esc(a) + '</span>').join('') + '</div></td>' +
+        '<td><div class="caps">' + m.caps.map(c => '<span class="pill grey">' + esc(c) + '</span>').join('') + '</div></td>' +
+        '<td class="n dim">' + (m.context ? fmtNum(m.context) : '–') + '</td>' +
+        '<td>' + (live
+          ? '<span class="pill ok">live</span>'
+          : '<span class="pill unknown">' + (!m.enabled ? 'model off' : !p.configured ? 'no key' : 'provider off') + '</span>') + '</td>' +
+      '</tr>');
+    }
+  }
+  document.getElementById('models-body').innerHTML = rows.length
+    ? rows.join('')
+    : '<tr><td colspan="6" class="empty">nothing matches “' + esc(q) + '”</td></tr>';
+  document.getElementById('model-count').textContent = rows.length + ' shown';
+}
+
+function renderLog() {
+  const q = document.getElementById('log-search').value.trim().toLowerCase();
+  const rows = [];
+
+  for (const l of state.logs) {
+    const hay = (l.requestedModel + ' ' + l.resolution + ' ' + (l.providerId || '') + ' ' + (l.modelId || '') + ' ' + (l.error || '')).toLowerCase();
+    if (q && !hay.includes(q)) continue;
+
+    const statusClass = l.status >= 500 ? 'status-5xx' : l.status >= 400 ? 'status-4xx' : 'status-200';
+    const hasDetail = (l.attempts && l.attempts.length > 0) || l.error ||
+      (l.preview && (l.preview.prompt || l.preview.response));
+    const open = expanded.has(l.id);
+
+    rows.push('<tr class="' + (hasDetail ? 'clickable' : '') + '" data-log="' + esc(l.id) + '">' +
+      '<td class="n dim">' + fmtTime(l.at) + '</td>' +
+      '<td class="n">' + esc(l.requestedModel) + '</td>' +
+      '<td class="n dim">' + esc(l.resolution) + '</td>' +
+      '<td class="n">' + (l.providerId ? esc(l.providerId) + '<span class="dim">/' + esc(l.modelId) + '</span>' : '<span class="dim">–</span>') + '</td>' +
+      // `attempts` holds only the *failed* tries, so a success is one more than
+      // its length, and a total failure is exactly its length.
+      '<td class="n' + (l.attempts && l.attempts.length ? ' status-4xx' : ' dim') + '">' +
+        (l.status < 400 ? l.attempts.length + 1 : l.attempts.length) +
+        (hasDetail ? (open ? ' ▾' : ' ▸') : '') + '</td>' +
+      '<td class="n ' + statusClass + '">' + l.status + (l.stream ? ' <span class="pill purple">sse</span>' : '') + '</td>' +
+      '<td class="n dim">' + fmtMs(l.ms) + '</td>' +
+      '<td class="n dim">' + (l.tokensIn + l.tokensOut ? fmtNum(l.tokensIn) + '→' + fmtNum(l.tokensOut) : '–') + '</td>' +
+    '</tr>');
+
+    if (open && hasDetail) {
+      const body = l.preview && (l.preview.prompt || l.preview.response)
+        ? '<div class="msg-h">prompt</div><div class="msg">' + esc(l.preview.prompt || '(empty)') + '</div>' +
+          '<div class="msg-h">response' +
+            (l.tokensIn + l.tokensOut ? ' · ' + fmtNum(l.tokensIn) + ' in / ' + fmtNum(l.tokensOut) + ' out' : '') +
+            (l.cache ? ' · from ' + esc(l.cache) + ' cache' : '') +
+          '</div><div class="msg out">' + esc(l.preview.response || '(no content)') + '</div>'
+        : '';
+      const lines = (l.attempts || []).map(a =>
+        '<div>· ' + esc(a.providerId) + '/' + esc(a.modelId) +
+        (a.keyId ? ' [' + esc(a.keyId) + ']' : '') +
+        ' → <span class="' + (a.status >= 500 ? 'status-5xx' : a.status >= 400 ? 'status-4xx' : 'dim') + '">' +
+        (a.status === null ? 'transport error' : a.status) + '</span> in ' + fmtMs(a.ms) +
+        (a.error ? ' — ' + esc(a.error) : '') + '</div>');
+      if (l.error) lines.push('<div class="status-5xx">· ' + esc(l.error) + '</div>');
+      rows.push('<tr><td colspan="8" class="attempts-detail">' + lines.join('') + body + '</td></tr>');
+    }
+  }
+
+  document.getElementById('log-body').innerHTML = rows.length
+    ? rows.join('')
+    : '<tr><td colspan="8" class="empty">no requests yet — send one to <code>/v1/chat/completions</code></td></tr>';
+}
+
+function renderStats() {
+  const s = state.stats;
+  if (!s) return;
+  document.getElementById('s-providers').textContent = s.providers.usable + '/' + s.providers.total;
+  document.getElementById('s-models').textContent = s.models.enabled;
+  document.getElementById('s-ok').textContent = fmtNum(s.requests.ok);
+  document.getElementById('s-fail').textContent = fmtNum(s.requests.fail);
+  document.getElementById('s-strategy').textContent = s.strategy;
+  document.getElementById('s-uptime').textContent = fmtDuration(s.uptimeSec);
+}
+
+function renderAlerts() {
+  const section = document.getElementById('alerts-section');
+  const el = document.getElementById('alerts');
+  const alerts = (state.alerts && state.alerts.alerts) || [];
+
+  if (alerts.length === 0) { section.classList.add('hide'); el.innerHTML = ''; return; }
+  section.classList.remove('hide');
+
+  el.innerHTML = alerts.map(a =>
+    '<div class="alert ' + esc(a.level) + '">' +
+      '<span class="src">' + esc(a.source) + '</span>' +
+      '<span>' + esc(a.message) + '</span>' +
+    '</div>').join('');
+}
+
+/** Per-limit trajectory, so a bar at 40% says whether that is fine or not. */
+function forecastFor(providerId, key) {
+  const list = (state.alerts && state.alerts.forecasts) || [];
+  const p = list.find(f => f.providerId === providerId);
+  if (!p) return null;
+  return p.forecasts.find(f => f.key === key) || null;
+}
+
+function renderUsage() {
+  const u = state.usage;
+  if (!u) return;
+  document.getElementById('usage-window').textContent = '· ' + u.window;
+
+  const t = u.totals;
+  const card = (big, lbl, sub, cls) =>
+    '<div class="ucard"><div class="big ' + (cls || '') + '">' + big + '</div>' +
+    '<div class="lbl">' + lbl + '</div>' + (sub ? '<div class="sub">' + sub + '</div>' : '') + '</div>';
+
+  document.getElementById('usage-cards').innerHTML =
+    card(fmtNum(t.tokensIn + t.tokensOut), 'tokens total', fmtNum(t.tokensIn) + ' in · ' + fmtNum(t.tokensOut) + ' out') +
+    card(fmtNum(t.requests), 'requests', t.ok + ' ok · ' + t.failed + ' failed', t.failed ? '' : 'ok-c') +
+    card(t.avgMs + 'ms', 'avg latency', t.streamed + ' streamed') +
+    // Cache hits are the interesting number: those are answers that cost nothing.
+    card(fmtNum(t.cached), 'served from cache',
+      t.requests ? Math.round((t.cached / t.requests) * 100) + '% of requests, 0 quota' : '', t.cached ? 'ok-c' : 'dim');
+
+  const rows = (list, name) => list.length === 0
+    ? '<div class="brow"><span class="dim">no traffic yet</span><span></span></div>'
+    : list.map(x => '<div class="brow">' +
+        '<span class="n">' + esc(name(x)) + '</span>' +
+        '<span class="n">' + fmtNum(x.tokensIn + x.tokensOut) + ' tok <span class="dim">· ' + x.requests + '×</span></span>' +
+      '</div>').join('');
+
+  document.getElementById('by-provider').innerHTML = rows(u.byProvider, x => x.id);
+  document.getElementById('by-model').innerHTML = rows(u.byModel, x => x.id);
+}
+
+function renderAll() {
+  renderStats();
+  renderUsage();
+  renderAlerts();
+  renderBanners();
+  renderCards();
+  renderModels();
+  renderLog();
+}
+
+// -------------------------------------------------------------------- polling
+
+async function refresh() {
+  try {
+    // Once the event stream is up the log is authoritative on its own, so the
+    // poll drops it and only re-reads state that changes continuously.
+    const wants = [api('/api/stats'), api('/api/providers'), api('/api/alerts'), api('/api/usage')];
+    if (!liveConnected) wants.push(api('/api/logs?limit=200'));
+    const [stats, providers, alerts, usage, logs] = await Promise.all(wants);
+
+    state.stats = stats;
+    state.providers = providers.providers;
+    state.issues = providers.issues || [];
+    state.alerts = alerts;
+    state.usage = usage;
+    if (logs) state.logs = logs.logs;
+    lastOk = Date.now();
+    showApp();
+    renderAll();
+    setPulse('ok');
+    if (!liveAbort) connectLive();
+  } catch (err) {
+    if (err && err.unauthorized) { showGate(); return; }
+    setPulse(Date.now() - lastOk > 15000 ? 'dead' : 'stale');
+  }
+}
+
+async function probeProvider(id, validate) {
+  state.probes[id] = { loading: true };
+  renderCards();
+  try {
+    const res = await api('/api/providers/' + encodeURIComponent(id) + '/probe', {
+      method: 'POST', body: JSON.stringify({ validate: !!validate }),
+    });
+    state.probes[id] = { results: res.results };
+  } catch (err) {
+    state.probes[id] = { error: String(err && err.message || err) };
+  }
+  renderCards();
+}
+
+function setPulse(kind) {
+  const el = document.getElementById('pulse');
+  el.className = 'pulse' + (kind === 'ok' ? '' : ' ' + kind);
+  document.getElementById('pulse-text').textContent =
+    kind === 'ok' ? 'live' : kind === 'stale' ? 'retrying' : 'disconnected';
+}
+
+function schedule() {
+  clearInterval(timer);
+  // Polling a hidden tab burns CPU for nobody; the visibilitychange handler
+  // brings it straight back with a fresh fetch.
+  timer = setInterval(() => { if (!paused && !document.hidden) refresh(); }, POLL_MS);
+}
+
+/* ---- live request log -------------------------------------------------- */
+/* Provider meters and cooldowns change continuously so they stay polled, but a
+   request is a discrete event and should appear the instant it happens rather
+   than up to POLL_MS later. Read with fetch rather than EventSource so the
+   virtual key travels in a header instead of a query string. */
+
+let liveAbort = null;
+let liveBackoff = 1000;
+let liveConnected = false;
+
+async function connectLive() {
+  if (liveAbort) liveAbort.abort();
+  liveAbort = new AbortController();
+
+  try {
+    const headers = { accept: 'text/event-stream' };
+    if (apiKey) headers['authorization'] = 'Bearer ' + apiKey;
+    const res = await fetch('/api/events', { headers, signal: liveAbort.signal });
+    if (res.status === 401 || res.status === 403) { showGate(); return; }
+    if (!res.ok || !res.body) throw new Error('events ' + res.status);
+
+    liveBackoff = 1000;
+    setLiveState(true);
+
+    const reader = res.body.getReader();
+    const decoder = new TextDecoder();
+    let buffer = '';
+    let event = 'message';
+
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      buffer += decoder.decode(value, { stream: true });
+
+      let nl;
+      while ((nl = buffer.indexOf('\n')) >= 0) {
+        const line = buffer.slice(0, nl).replace(/\r$/, '');
+        buffer = buffer.slice(nl + 1);
+        if (line.startsWith('event:')) { event = line.slice(6).trim(); continue; }
+        if (line.startsWith('data:')) {
+          const payload = line.slice(5).trim();
+          if (event === 'log') {
+            try { onLiveLog(JSON.parse(payload)); } catch { /* malformed frame */ }
+          }
+          event = 'message';
+        }
+      }
+    }
+  } catch (err) {
+    if (err && err.name === 'AbortError') return;
+  }
+
+  setLiveState(false);
+  // Reconnect with backoff. The polled sections keep the page useful meanwhile.
+  liveBackoff = Math.min(liveBackoff * 2, 15000);
+  setTimeout(() => { if (!paused) connectLive(); }, liveBackoff);
+}
+
+function onLiveLog(entry) {
+  // Prepend rather than refetch: the entry is already the whole truth.
+  state.logs.unshift(entry);
+  if (state.logs.length > 200) state.logs.length = 200;
+  flashLive();
+  renderLog();
+}
+
+function setLiveState(on) {
+  liveConnected = on;
+  const el = document.getElementById('live-badge');
+  el.textContent = on ? 'streaming' : 'polling';
+  el.className = 'pill ' + (on ? 'ok' : 'grey');
+}
+
+let flashTimer = null;
+function flashLive() {
+  const el = document.getElementById('live-badge');
+  el.style.transform = 'scale(1.14)';
+  clearTimeout(flashTimer);
+  flashTimer = setTimeout(() => { el.style.transform = ''; }, 180);
+}
+
+function showGate() {
+  document.getElementById('gate').classList.remove('hide');
+  document.getElementById('app').classList.add('hide');
+  clearInterval(timer);
+}
+function showApp() {
+  document.getElementById('gate').classList.add('hide');
+  document.getElementById('app').classList.remove('hide');
+}
+
+// --------------------------------------------------------------------- events
+
+document.addEventListener('click', async (e) => {
+  const toggle = e.target.closest('[data-toggle]');
+  if (toggle) {
+    const id = toggle.dataset.toggle;
+    const next = toggle.getAttribute('aria-pressed') !== 'true';
+    toggle.setAttribute('aria-pressed', String(next));  // optimistic
+    try {
+      await api('/api/providers/' + encodeURIComponent(id) + '/enabled', { method: 'POST', body: JSON.stringify({ enabled: next }) });
+    } catch { /* the next poll re-syncs from the server */ }
+    refresh();
+    return;
+  }
+
+  const copy = e.target.closest('[data-copy]');
+  if (copy) {
+    navigator.clipboard?.writeText(copy.dataset.copy);
+    const was = copy.textContent;
+    copy.textContent = 'copied';
+    setTimeout(() => { copy.textContent = was; }, 1200);
+    return;
+  }
+
+  const save = e.target.closest('[data-key-save]');
+  if (save) {
+    const id = save.dataset.keySave;
+    const input = document.querySelector('[data-key-input="' + CSS.escape(id) + '"]');
+    const value = input && input.value.trim();
+    if (!value) return;
+    save.disabled = true; save.textContent = 'saving…';
+    try {
+      await api('/api/providers/' + encodeURIComponent(id) + '/key', { method: 'POST', body: JSON.stringify({ key: value }) });
+      if (input) input.value = '';
+      await refresh();
+      probeProvider(id, false);   // immediately show what the new key can reach
+    } catch (err) {
+      save.textContent = 'failed';
+    }
+    return;
+  }
+
+  const probe = e.target.closest('[data-probe]');
+  if (probe) { e.preventDefault(); probeProvider(probe.dataset.probe, false); return; }
+  const deep = e.target.closest('[data-probe-validate]');
+  if (deep) { e.preventDefault(); probeProvider(deep.dataset.probeValidate, true); return; }
+
+  const row = e.target.closest('[data-log]');
+  if (row) {
+    const id = row.dataset.log;
+    if (expanded.has(id)) expanded.delete(id); else expanded.add(id);
+    renderLog();
+  }
+});
+
+document.getElementById('btn-reload').addEventListener('click', async (e) => {
+  e.target.disabled = true;
+  try { await api('/api/reload', { method: 'POST', body: '{}' }); } catch { /* surfaced by the pulse */ }
+  await refresh();
+  e.target.disabled = false;
+});
+
+document.getElementById('btn-pause').addEventListener('click', (e) => {
+  paused = !paused;
+  e.target.textContent = paused ? 'resume' : 'pause';
+  e.target.classList.toggle('on', paused);
+  if (paused) {
+    if (liveAbort) liveAbort.abort();
+    liveAbort = null;
+    setLiveState(false);
+  } else {
+    refresh();
+    connectLive();
+  }
+});
+
+document.getElementById('model-search').addEventListener('input', renderModels);
+document.getElementById('log-search').addEventListener('input', renderLog);
+
+document.getElementById('gate-go').addEventListener('click', async () => {
+  const value = document.getElementById('gate-key').value.trim();
+  if (!value) return;
+  apiKey = value;
+  try {
+    await api('/api/stats');
+    localStorage.setItem(KEY_STORAGE, apiKey);
+    document.getElementById('gate-err').classList.add('hide');
+    schedule();
+    refresh();
+  } catch {
+    apiKey = '';
+    const err = document.getElementById('gate-err');
+    err.textContent = 'that key was rejected';
+    err.classList.remove('hide');
+  }
+});
+document.getElementById('gate-key').addEventListener('keydown', (e) => {
+  if (e.key === 'Enter') document.getElementById('gate-go').click();
+});
+
+document.addEventListener('visibilitychange', () => { if (!document.hidden && !paused) refresh(); });
+
+schedule();
+refresh();
+</script>
+</body>
+</html>

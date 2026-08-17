@@ -1,0 +1,19 @@
+{
+  "$schema": "./_schema.json",
+  "id": "cerebras",
+  "label": "Cerebras",
+  "docs": "https://inference-docs.cerebras.ai/",
+  "console": "https://cloud.cerebras.ai/platform",
+  "priority": 15,
+  "baseUrl": "https://api.cerebras.ai/v1",
+  "auth": { "type": "bearer", "envKeys": ["CEREBRAS_API_KEY"] },
+  "limits": { "rpm": 30, "rpd": 14400, "tpm": 60000, "tpd": 1000000 },
+  "limitsSource": "docs",
+  "verifiedOn": "2026-08-16",
+  "modelsEndpoint": "/models",
+  "modelsPath": "data[].id",
+  "notes": "Largest daily token budget of the free tiers (~1M tokens/day), no card required. Cerebras reports windowed rate-limit headers (x-ratelimit-limit-tokens-day and friends), so calibration gets exact per-key numbers after the first request.",
+  "models": [
+    { "id": "llama-3.3-70b", "label": "Llama 3.3 70B", "alias": ["fast", "big"], "context": 65536, "caps": ["chat", "tools", "json"], "priority": 10 }
+  ]
+}

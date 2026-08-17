@@ -1,0 +1,17 @@
+{
+  "$schema": "./_schema.json",
+  "id": "huggingface",
+  "label": "Hugging Face Router",
+  "docs": "https://huggingface.co/docs/inference-providers",
+  "console": "https://huggingface.co/settings/tokens",
+  "priority": 50,
+  "baseUrl": "https://router.huggingface.co/v1",
+  "auth": { "type": "bearer", "envKeys": ["HF_TOKEN", "HUGGINGFACE_API_KEY"] },
+  "limits": { "rpm": null },
+  "limitsSource": "unverified",
+  "verifiedOn": "2026-08-16",
+  "modelsEndpoint": "/models",
+  "modelsPath": "data[].id",
+  "notes": "Routes to whichever inference provider currently serves a model, so availability moves around. Free monthly credits are small; treat this as overflow rather than a primary. Model ids are vendor/model, handled by the first-slash pin rule.",
+  "models": []
+}

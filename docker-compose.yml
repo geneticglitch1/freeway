@@ -1,0 +1,52 @@
+services:
+  freeway:
+    build: .
+    image: freeway:local
+    container_name: freeway
+    restart: unless-stopped
+
+    # Bound to loopback on the host. Freeway itself refuses to serve an open
+    # gateway on a public interface, but the port mapping is the outer gate.
+    ports:
+      - "127.0.0.1:8787:8787"
+
+    env_file:
+      - .env
+
+    environment:
+      HOST: 0.0.0.0
+      PORT: 8787
+      FREEWAY_ROOT: /app
+      FREEWAY_PROVIDERS: /app/providers
+      FREEWAY_DATA: /app/data
+      FREEWAY_CONFIG: /app/freeway.config.json
+      NODE_ENV: production
+
+    volumes:
+      # Read-only: adding a provider is editing a JSON file on the host and
+      # hitting POST /api/reload — no rebuild, and the container cannot rewrite
+      # its own provider definitions.
+      - ./providers:/app/providers:ro
+      - ./freeway.config.json:/app/freeway.config.json:ro
+      # Read-write: quota counters, conversation history, cache, pasted keys.
+      # This is what makes a monthly quota survive a restart.
+      - ./data:/app/data
+
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:8787/healthz').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 30s
+      timeout: 3s
+      start_period: 5s
+      retries: 3
+
+    # Nothing here needs root or any elevated capability.
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"

@@ -1,0 +1,20 @@
+{
+  "$schema": "./_schema.json",
+  "id": "openrouter",
+  "label": "OpenRouter (free models)",
+  "docs": "https://openrouter.ai/docs",
+  "console": "https://openrouter.ai/keys",
+  "priority": 40,
+  "baseUrl": "https://openrouter.ai/api/v1",
+  "auth": { "type": "bearer", "envKeys": ["OPENROUTER_API_KEY"] },
+  "limits": { "rpm": 20, "rpd": 50 },
+  "limitsSource": "unverified",
+  "verifiedOn": "2026-08-16",
+  "modelsEndpoint": "/models",
+  "modelsPath": "data[].id",
+  "headers": { "HTTP-Referer": "https://github.com/freeway", "X-Title": "Freeway" },
+  "notes": "Only :free-suffixed models cost nothing. Free daily request caps depend on account credit history, so limits here are unverified on purpose. Model ids contain a slash (vendor/model), which the first-slash pin rule handles.",
+  "models": [
+    { "id": "meta-llama/llama-3.3-70b-instruct:free", "label": "Llama 3.3 70B (free)", "alias": ["big"], "context": 65536, "caps": ["chat", "tools"], "priority": 10 }
+  ]
+}

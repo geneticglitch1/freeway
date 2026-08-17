@@ -1,0 +1,21 @@
+{
+  "name": "@freeway/gateway",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "main": "./dist/server.js",
+  "types": "./dist/server.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/server.d.ts",
+      "default": "./dist/server.js"
+    }
+  },
+  "files": ["dist", "public"],
+  "dependencies": {
+    "@freeway/core": "*"
+  },
+  "scripts": {
+    "test": "node --test test/*.test.ts"
+  }
+}

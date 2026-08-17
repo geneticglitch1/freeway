@@ -1,0 +1,17 @@
+{
+  "$schema": "./_schema.json",
+  "id": "together",
+  "label": "Together AI",
+  "docs": "https://docs.together.ai/docs/inference-models",
+  "console": "https://api.together.xyz/settings/api-keys",
+  "priority": 45,
+  "baseUrl": "https://api.together.xyz/v1",
+  "auth": { "type": "bearer", "envKeys": ["TOGETHER_API_KEY"] },
+  "limits": { "rpm": 60 },
+  "limitsSource": "unverified",
+  "verifiedOn": "2026-08-16",
+  "modelsEndpoint": "/models",
+  "modelsPath": "[].id",
+  "notes": "Free tier is limited to models with a -Free suffix; everything else bills. Leaving models empty on purpose so discovery reports what your key can actually reach rather than guessing at a moving list.",
+  "models": []
+}

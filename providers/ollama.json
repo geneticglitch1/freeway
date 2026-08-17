@@ -1,0 +1,17 @@
+{
+  "$schema": "./_schema.json",
+  "id": "ollama",
+  "label": "Ollama (local)",
+  "docs": "https://github.com/ollama/ollama/blob/main/docs/openai.md",
+  "console": "https://ollama.com/library",
+  "priority": 90,
+  "baseUrl": "${OLLAMA_HOST}/v1",
+  "auth": { "type": "none", "envKeys": [] },
+  "limits": {},
+  "limitsSource": "docs",
+  "verifiedOn": "2026-08-16",
+  "modelsEndpoint": "/models",
+  "modelsPath": "data[].id",
+  "notes": "Your own machine, so there is no quota to meter and no key to hold — the point of auth.type: none. Set OLLAMA_HOST=http://127.0.0.1:11434 to enable. Priority 90 keeps it as the last resort, i.e. the thing that still answers when every hosted free tier is exhausted. Leave models empty; discovery lists whatever you have pulled.",
+  "models": []
+}

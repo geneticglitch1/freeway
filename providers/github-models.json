@@ -1,0 +1,17 @@
+{
+  "$schema": "./_schema.json",
+  "id": "github-models",
+  "label": "GitHub Models",
+  "docs": "https://docs.github.com/en/github-models",
+  "console": "https://github.com/settings/tokens",
+  "priority": 45,
+  "baseUrl": "https://models.github.ai/inference",
+  "auth": { "type": "bearer", "envKeys": ["GITHUB_MODELS_TOKEN", "GITHUB_TOKEN"] },
+  "limits": { "rpm": null, "rpd": null },
+  "limitsSource": "unverified",
+  "verifiedOn": "2026-08-16",
+  "modelsEndpoint": "/models",
+  "modelsPath": "[].id",
+  "notes": "Free for anyone with a GitHub account; needs a PAT with the models:read scope. Limits are tiered by account and not published as flat numbers, hence nulls — calibration learns them. Note modelsPath is [].id: the catalog is a bare array, not an OpenAI {data:[...]} envelope.",
+  "models": []
+}

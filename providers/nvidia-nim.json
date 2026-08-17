@@ -1,0 +1,17 @@
+{
+  "$schema": "./_schema.json",
+  "id": "nvidia-nim",
+  "label": "NVIDIA NIM",
+  "docs": "https://docs.api.nvidia.com/nim/",
+  "console": "https://build.nvidia.com/",
+  "priority": 50,
+  "baseUrl": "https://integrate.api.nvidia.com/v1",
+  "auth": { "type": "bearer", "envKeys": ["NVIDIA_API_KEY"] },
+  "limits": { "rpm": null },
+  "limitsSource": "unverified",
+  "verifiedOn": "2026-08-16",
+  "modelsEndpoint": "/models",
+  "modelsPath": "data[].id",
+  "notes": "Free developer credits rather than a perpetual free tier — it runs out. Model ids are vendor/model.",
+  "models": []
+}

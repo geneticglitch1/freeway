@@ -1,0 +1,51 @@
+{
+  "strategy": "priority",
+  "maxAttempts": 3,
+  "cooldownSeconds": 60,
+  "timeoutMs": 60000,
+  "streamTimeoutMs": 300000,
+  "host": "127.0.0.1",
+  "port": 8787,
+
+  "keys": [],
+  "adminKey": null,
+
+  "//aliases": [
+    "Empty on purpose. Aliases live in the provider files, next to the models",
+    "they name — so a model id and its alias can never drift apart. A config",
+    "alias here OVERRIDES those and pins one exact model, which is what you want",
+    "only when you deliberately never want failover for that name.",
+    "Example: \"fast\": \"mistral/mistral-small-latest\""
+  ],
+  "aliases": {},
+
+  "guard": {
+    "perKey": { "rpm": null, "tpm": null, "rpd": null, "concurrency": null },
+    "perIp": { "rpm": null, "concurrency": null },
+    "maxBodyBytes": 8388608,
+    "maxMessages": 500,
+    "scan": { "mode": "flag", "secrets": true, "pii": true, "injection": true },
+    "calibrate": true,
+    "keyHealthIntervalMs": 21600000
+  },
+
+  "context": {
+    "enabled": true,
+    "maxTurns": 12,
+    "reserveOutputTokens": 1024,
+    "compactModel": "fast",
+    "autoCompactAt": 0.8
+  },
+
+  "cache": {
+    "mode": "safe",
+    "ttlMs": 86400000,
+    "maxEntries": 5000,
+    "semantic": {
+      "enabled": false,
+      "threshold": 0.92,
+      "model": "embed",
+      "maxEntries": 5000
+    }
+  }
+}

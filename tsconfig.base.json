@@ -1,0 +1,33 @@
+{
+  "$schema": "https://json.schemastore.org/tsconfig",
+  "compilerOptions": {
+    "target": "ES2023",
+    "lib": ["ES2023"],
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
+
+    "strict": true,
+    "noUncheckedIndexedAccess": true,
+    "exactOptionalPropertyTypes": true,
+    "noImplicitOverride": true,
+    "noFallthroughCasesInSwitch": true,
+    "noImplicitReturns": true,
+
+    "declaration": true,
+    "declarationMap": true,
+    "sourceMap": true,
+    "composite": true,
+    "incremental": true,
+
+    "verbatimModuleSyntax": true,
+    "isolatedModules": true,
+
+    // Source imports carry `.ts` so Node can run and test the sources directly
+    // via type stripping; tsc rewrites them to `.js` on the way into dist.
+    "allowImportingTsExtensions": true,
+    "rewriteRelativeImportExtensions": true,
+
+    "skipLibCheck": true,
+    "forceConsistentCasingInFileNames": true
+  }
+}

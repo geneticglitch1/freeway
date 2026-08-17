@@ -1,0 +1,31 @@
+{
+  "name": "freeway",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Self-hosted, OpenAI-compatible gateway + registry + SDK for free-tier API providers",
+  "engines": {
+    "node": ">=22"
+  },
+  "workspaces": [
+    "packages/core",
+    "packages/gateway",
+    "packages/sdk"
+  ],
+  "scripts": {
+    "build": "tsc --build",
+    "clean": "tsc --build --clean",
+    "test": "npm run build && node --test packages/*/test/*.test.ts",
+    "test:core": "npm run build && node --test packages/core/test/*.test.ts",
+    "start": "node packages/gateway/dist/bin.js",
+    "dev": "node --watch packages/gateway/src/bin.ts",
+    "smoke": "node scripts/smoke.mjs",
+    "verify-provider": "node scripts/verify-provider.mjs",
+    "new-provider": "node scripts/new-provider.mjs",
+    "mock": "node scripts/mock-upstream.js"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.0",
+    "typescript": "^5.9.0"
+  }
+}
